@@ -2,7 +2,8 @@ WIDTH = 80
 HEIGHT = 160
 GRID = 8
 
-ROWS = 24
+ROWS = 20
+ROWS_BUFFER = 3
 COLUMNS = 10
 
 SCALE = 4
@@ -20,82 +21,97 @@ function love.load()
     }
 
     board = {}
-    for i = 1, ROWS do
+    for i = 1, ROWS + ROWS_BUFFER do
         table.insert(board, {})
         for j = 1, COLUMNS do
             table.insert(board[i], 0)
         end
     end
 
-    T_PIECE = {
-        -- Initial shape
-        {
-            {0, 0, 0},
-            {1, 1, 1},
-            {0, 1, 0}
-        },
-        -- (x, y) coordinates
-        {4, 0}
-    }
+    function new_T_PIECE()
+        return {
+            shape ={
+                {0, 0, 0},
+                {1, 1, 1},
+                {0, 1, 0}
+            },
+            position = {x = 4, y = 0}
+        }
+    end
 
-    J_PIECE = {
-        {
-            {0, 0, 0},
-            {1, 1, 1},
-            {0, 0, 1},
-        },
-        {4, 0}
-    }
+    function new_J_PIECE() 
+        return {
+            shape = {
+                {0, 0, 0},
+                {1, 1, 1},
+                {0, 0, 1},
+            },
+            position = {x = 4, y = 0}
+        }
+    end
 
-    Z_PIECE = {
-        {
-            {0, 0, 0},
-            {1, 1, 0},
-            {0, 1, 1}
-        },
-        {4, 0}
-    }
+    function new_Z_PIECE()
+        return {
+            shape = {
+                {0, 0, 0},
+                {1, 1, 0},
+                {0, 1, 1}
+            },
+            position = {x = 4, y = 0}
+        }
+    end
 
-    O_PIECE = {
-        {
-            {0, 0, 0, 0},
-            {0, 1, 1, 0},
-            {0, 1, 1, 0},
-            {0, 0, 0, 0}
-        },
-        {3, 0}
-    }
+    function new_O_PIECE()
+        return {
+            shape = {
+                {0, 0, 0, 0},
+                {0, 1, 1, 0},
+                {0, 1, 1, 0},
+                {0, 0, 0, 0}
+            },
+            position = {x = 3, y = 0}
+        }
+    end
 
-    S_PIECE = {
-        {
-            {0, 0, 0},
-            {0, 1, 1},
-            {1, 1, 0}
-        },
-        {4, 0}
-    }
+    function new_S_PIECE()
+        return {
+            shape = {
+                {0, 0, 0},
+                {0, 1, 1},
+                {1, 1, 0}
+            },
+            position = {x = 4, y = 0}
+        }
+    end
 
-    L_PIECE = {
-        {
-            {0, 0, 0},
-            {1, 1, 1},
-            {1, 0, 0}
-        },
-        {4, 0}
-    }
+    function new_L_PIECE()
+        return {
+            shape = {
+                {0, 0, 0},
+                {1, 1, 1},
+                {1, 0, 0}
+            },
+            position = {x = 4, y = 0}
+        }
+    end
 
-    I_PIECE = {
-        {
-            {0, 0, 0, 0},
-            {1, 1, 1, 1},
-            {0, 0, 0, 0},
-            {0, 0, 0, 0}
-        },
-        {3, 0}
-    }
+    function new_I_PIECE()
+        return {
+            shape = {
+                {0, 0, 0, 0},
+                {1, 1, 1, 1},
+                {0, 0, 0, 0},
+                {0, 0, 0, 0}
+            },
+            position = {x = 3, y = 0}
+        }
+    end
+
+    current_piece = new_I_PIECE()
 end
 
 function love.draw()
+    love.graphics.setColor(1, 1, 1)
     for i = 1, COLUMNS + 1 do
         love.graphics.line(i * SCALED_GRID, 0, i * SCALED_GRID, HEIGHT * SCALED_GRID)
     end
@@ -106,51 +122,99 @@ function love.draw()
     for i = 1, table.getn(board) do
         for j = 1, table.getn(board[i]) do
             if board[i][j] == 1 then
+                love.graphics.setColor(1, 1, 1)
+                love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
+            elseif board[i][j] == 2 then
+                love.graphics.setColor(0.25, 0.25, 0.25)
                 love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             end
         end
     end
 end
 
-function clear_piece(board, piece)
-    piece_x = piece[2][1]
-    piece_y = piece[2][2]
+function new_piece()
+    piece = math.random(7)
 
-    for i = 1, table.getn(piece[1]) do
-        for j = 1, table.getn(piece[1][i]) do
-            if board[piece_y + i][piece_x + j] == 1 then
-                board[piece_y + i][piece_x + j] = 0
+    if piece == 1 then
+        current_piece = new_T_PIECE()
+    elseif piece == 2 then
+        current_piece = new_J_PIECE()
+    elseif piece == 3 then
+        current_piece = new_Z_PIECE()
+    elseif piece == 4 then
+        current_piece = new_O_PIECE()
+    elseif  piece == 5 then
+        current_piece = new_S_PIECE()
+    elseif piece == 6 then
+        current_piece = new_L_PIECE()
+    elseif piece == 7 then
+        current_piece = new_I_PIECE()
+    end
+end
+
+function place_piece(board, piece)
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 2
+            end
+        end
+    end
+
+    new_piece()
+end
+
+function clear_piece(board, piece)
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 0
             end
         end
     end
 end
 
 function lower_piece(board, piece)
-    clear_piece(board, piece)
-
-    piece_x = piece[2][1]
-    piece_y = piece[2][2]
-
-    for i = 1, table.getn(piece[1]) do
-        for j = 1, table.getn(piece[1][i]) do
-            if board[piece_y + i][piece_x + j] == 0 and piece[1][i][j] == 1 then
-                board[piece_y + i][piece_x + j] = 1
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 2 and piece.shape[i][j] == 1 then
+                place_piece(board, piece)
+                return
+            elseif board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 and piece.position.y + i > ROWS + 1 then
+                piece.position.y = piece.position.y - 1
+                place_piece(board, piece)
+                return
             end
         end
     end
 
-    piece[2][2] = piece[2][2] + 1
+    clear_piece(board, piece)
+
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 1
+            end
+        end
+    end
+
+    piece.position.y = piece.position.y + 1
 end
 
-function check_xdirection(dir)
-    for i = 1, table.getn(board) do
-        for j = 1, table.getn(board[i]) do
-            if board[i][j] == 1 and j + dir > 0 and j + dir < COLUMNS + 1 then
-                if board[i][j + dir] == 0 then
-                    board[i][j] = 0
-                    board[i][j + dir] = 1
-                    break
-                end
+function shift_piece(board, piece, dir)
+    new_x = piece.position.x + dir
+
+    if new_x < 0 or new_x + table.getn(piece.shape[1]) > COLUMNS then
+        return
+    end
+
+    clear_piece(board, piece)
+    piece.position.x = new_x
+
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 1
             end
         end
     end
@@ -159,16 +223,21 @@ end
 function love.update(dt)
     tick = tick + dt
 
-    if tick > 1 then
+    if tick > 0.25 then
         tick = 0
-        lower_piece(board, I_PIECE)
+        lower_piece(board, current_piece)
+    end
+
+    if love.keyboard.isDown("s", "down") and tick > 0.025 then
+        tick = 0
+        lower_piece(board, current_piece)
     end
 
     function love.keypressed(key)
         if key == "a" or key == "left" then
-            check_xdirection(-1)
+            shift_piece(board, current_piece, -1)
         elseif key == "d" or key == "right" then
-            check_xdirection(1)
+            shift_piece(board, current_piece, 1)
         end
     end
 end
