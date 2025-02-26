@@ -1,12 +1,17 @@
-WIDTH = 80
-HEIGHT = 160
+PADDING = 8
+WIDTH = 320 + PADDING
+HEIGHT = 160 + PADDING
 GRID = 8
 
 ROWS = 20
-ROWS_BUFFER = 3
 COLUMNS = 10
+DEPTH = 4
 
-SCALE = 4
+ROWS_BUFFER = 3
+ROWS_OFFSET = 2
+COLUMNS_OFFSET = 1
+
+SCALE = 2
 
 SCALED_GRID = GRID * SCALE
 
@@ -15,17 +20,15 @@ love.window.setMode(WIDTH * SCALE, HEIGHT * SCALE)
 function love.load()
     tick = 0
 
-    block = {
-        x = 0,
-        y = 0
-    }
-
     board = {}
-    for i = 1, ROWS + ROWS_BUFFER do
-        table.insert(board, {})
-        for j = 1, COLUMNS do
-            table.insert(board[i], 0)
-        end
+    for i = 1, DEPTH do
+      table.insert(board, {})
+      for j = 1, ROWS + ROWS_BUFFER do
+          table.insert(board[i], {})
+          for k = 1, COLUMNS do
+              table.insert(board[i][j], 0)
+          end
+      end
     end
 
     function new_T_PIECE()
@@ -107,26 +110,29 @@ function love.load()
         }
     end
 
-    current_piece = new_I_PIECE()
+    -- current_piece = new_I_PIECE()
 end
 
 function love.draw()
     love.graphics.setColor(1, 1, 1)
-    for i = 1, COLUMNS + 1 do
-        love.graphics.line(i * SCALED_GRID, 0, i * SCALED_GRID, HEIGHT * SCALED_GRID)
-    end
-    for i = 1, ROWS + 1 do
-        love.graphics.line(0, i * SCALED_GRID, WIDTH * SCALED_GRID, i * SCALED_GRID)
+
+    for i = 0, DEPTH do
+      for i = 1, COLUMNS + 1 do
+          love.graphics.line((i + DEPTH + PADDING) * SCALED_GRID, PADDING * SCALED_GRID, i * SCALED_GRID, HEIGHT * SCALED_GRID)
+      end
+      for i = 1, ROWS + 1 do
+          love.graphics.line(0, i * SCALED_GRID, WIDTH * SCALED_GRID, i * SCALED_GRID)
+      end
     end
 
     for i = 1, table.getn(board) do
         for j = 1, table.getn(board[i]) do
             if board[i][j] == 1 then
                 love.graphics.setColor(1, 1, 1)
-                love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
+                love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             elseif board[i][j] == 2 then
                 love.graphics.setColor(0.25, 0.25, 0.25)
-                love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
+                love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             end
         end
     end
@@ -223,10 +229,10 @@ end
 function love.update(dt)
     tick = tick + dt
 
-    if tick > 0.25 then
-        tick = 0
-        lower_piece(board, current_piece)
-    end
+    -- if tick > 0.25 then
+    --     tick = 0
+    --     lower_piece(board, current_piece)
+    -- end
 
     if love.keyboard.isDown("s", "down") and tick > 0.025 then
         tick = 0
