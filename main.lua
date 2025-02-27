@@ -3,8 +3,12 @@ HEIGHT = 160
 GRID = 8
 
 ROWS = 20
-ROWS_BUFFER = 3
 COLUMNS = 10
+
+ROWS_BUFFER = 5
+COLUMNS_BUFFER = 3
+ROWS_OFFSET = 3
+COLUMNS_OFFSET = 2
 
 SCALE = 4
 
@@ -15,15 +19,10 @@ love.window.setMode(WIDTH * SCALE, HEIGHT * SCALE)
 function love.load()
     tick = 0
 
-    block = {
-        x = 0,
-        y = 0
-    }
-
     board = {}
     for i = 1, ROWS + ROWS_BUFFER do
         table.insert(board, {})
-        for j = 1, COLUMNS do
+        for j = 1, COLUMNS + COLUMNS_BUFFER do
             table.insert(board[i], 0)
         end
     end
@@ -35,7 +34,7 @@ function love.load()
                 {1, 1, 1},
                 {0, 1, 0}
             },
-            position = {x = 4, y = 0}
+            position = {x = 5, y = 0}
         }
     end
 
@@ -46,7 +45,7 @@ function love.load()
                 {1, 1, 1},
                 {0, 0, 1},
             },
-            position = {x = 4, y = 0}
+            position = {x = 5, y = 0}
         }
     end
 
@@ -57,7 +56,7 @@ function love.load()
                 {1, 1, 0},
                 {0, 1, 1}
             },
-            position = {x = 4, y = 0}
+            position = {x = 5, y = 0}
         }
     end
 
@@ -69,7 +68,7 @@ function love.load()
                 {0, 1, 1, 0},
                 {0, 0, 0, 0}
             },
-            position = {x = 3, y = 0}
+            position = {x = 4, y = 0}
         }
     end
 
@@ -80,7 +79,7 @@ function love.load()
                 {0, 1, 1},
                 {1, 1, 0}
             },
-            position = {x = 4, y = 0}
+            position = {x = 5, y = 0}
         }
     end
 
@@ -91,7 +90,7 @@ function love.load()
                 {1, 1, 1},
                 {1, 0, 0}
             },
-            position = {x = 4, y = 0}
+            position = {x = 5, y = 0}
         }
     end
 
@@ -103,7 +102,7 @@ function love.load()
                 {0, 0, 0, 0},
                 {0, 0, 0, 0}
             },
-            position = {x = 3, y = 0}
+            position = {x = 4, y = 0}
         }
     end
 
@@ -123,10 +122,10 @@ function love.draw()
         for j = 1, table.getn(board[i]) do
             if board[i][j] == 1 then
                 love.graphics.setColor(1, 1, 1)
-                love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
+                love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             elseif board[i][j] == 2 then
                 love.graphics.setColor(0.25, 0.25, 0.25)
-                love.graphics.rectangle("fill", (j - 1) * SCALED_GRID, (i - 2) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
+                love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             end
         end
     end
@@ -175,13 +174,14 @@ function clear_piece(board, piece)
 end
 
 function lower_piece(board, piece)
+    local new_y = piece.position.y + 1
+
     for i = 1, table.getn(piece.shape) do
         for j = 1, table.getn(piece.shape[i]) do
-            if board[piece.position.y + i][piece.position.x + j] == 2 and piece.shape[i][j] == 1 then
+            if board[new_y + i][piece.position.x + j] == 2 and piece.shape[i][j] == 1 then
                 place_piece(board, piece)
                 return
-            elseif board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 and piece.position.y + i > ROWS + 1 then
-                piece.position.y = piece.position.y - 1
+            elseif board[new_y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 and new_y + i > ROWS + ROWS_BUFFER - ROWS_OFFSET then
                 place_piece(board, piece)
                 return
             end
@@ -189,23 +189,34 @@ function lower_piece(board, piece)
     end
 
     clear_piece(board, piece)
+    piece.position.y = new_y
 
     for i = 1, table.getn(piece.shape) do
         for j = 1, table.getn(piece.shape[i]) do
             if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 1
+            elseif board[piece.position.y + i][piece.position.x + j] == 1 and piece.shape[i][j] == 1 then
+                clear_piece(board, piece)
+                piece.position.y = piece.position.y - 1
+                place_piece(board,piece)
             end
         end
     end
-
-    piece.position.y = piece.position.y + 1
 end
 
 function shift_piece(board, piece, dir)
-    new_x = piece.position.x + dir
+    local new_x = piece.position.x + dir
 
-    if new_x < 0 or new_x + table.getn(piece.shape[1]) > COLUMNS then
-        return
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][new_x + j] == 0 and piece.shape[i][j] == 1 then
+                if new_x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET then
+                    return
+                elseif new_x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
+                    return
+                end
+            end
+        end
     end
 
     clear_piece(board, piece)
@@ -220,24 +231,63 @@ function shift_piece(board, piece, dir)
     end
 end
 
+function rotate_piece(board, piece, dir)
+    rotated_shape = {}
+
+    for i = 1, table.getn(piece.shape) do
+        rotated_shape[i] = {}
+        for j = 1, table.getn(piece.shape[i]) do
+            rotated_shape[i][j] = 0
+        end
+    end
+
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if dir == 1 then
+                rotated_shape[j][table.getn(piece.shape) - i + 1] = piece.shape[i][j]  -- Clockwise
+            else
+                rotated_shape[table.getn(piece.shape[i]) - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
+            end
+        end
+    end
+
+    piece.shape = rotated_shape
+    clear_piece(board, piece)
+
+    for i = 1, table.getn(piece.shape) do
+        for j = 1, table.getn(piece.shape[i]) do
+            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 1
+            end
+        end
+    end
+end
+
+
+
+function love.keypressed(key)
+    -- Debug
+    if love.keyboard.isDown("s", "down") then
+    -- if love.keyboard.isDown("s", "down") and tick > 0.025 then
+        lower_piece(board, current_piece)
+    end
+
+    if key == "a" or key == "left" then
+        shift_piece(board, current_piece, -1)
+    elseif key == "d" or key == "right" then
+        shift_piece(board, current_piece, 1)
+    elseif key == "q" then
+        rotate_piece(board, current_piece, -1)
+    elseif key == "e" then
+        rotate_piece(board, current_piece, 1)
+    end
+end
+
 function love.update(dt)
     tick = tick + dt
 
     if tick > 0.25 then
         tick = 0
         lower_piece(board, current_piece)
-    end
-
-    if love.keyboard.isDown("s", "down") and tick > 0.025 then
-        tick = 0
-        lower_piece(board, current_piece)
-    end
-
-    function love.keypressed(key)
-        if key == "a" or key == "left" then
-            shift_piece(board, current_piece, -1)
-        elseif key == "d" or key == "right" then
-            shift_piece(board, current_piece, 1)
-        end
     end
 end
