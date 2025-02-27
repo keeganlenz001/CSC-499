@@ -1,6 +1,6 @@
-PADDING = 8
-WIDTH = 320 + PADDING
-HEIGHT = 160 + PADDING
+BOARD_WIDTH = 80
+BOARD_HEIGHT = 160
+PADDING = 16
 GRID = 8
 
 ROWS = 20
@@ -11,11 +11,13 @@ ROWS_BUFFER = 3
 ROWS_OFFSET = 2
 COLUMNS_OFFSET = 1
 
-SCALE = 2
+SCALE = 3
 
 SCALED_GRID = GRID * SCALE
 
-love.window.setMode(WIDTH * SCALE, HEIGHT * SCALE)
+WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
+HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2)
+love.window.setMode(WIDTH, HEIGHT)
 
 function love.load()
     tick = 0
@@ -116,14 +118,35 @@ end
 function love.draw()
     love.graphics.setColor(1, 1, 1)
 
-    for i = 0, DEPTH do
-      for i = 1, COLUMNS + 1 do
-          love.graphics.line((i + DEPTH + PADDING) * SCALED_GRID, PADDING * SCALED_GRID, i * SCALED_GRID, HEIGHT * SCALED_GRID)
+    -- for i = 1, DEPTH + 1 do
+    --   for j = 0, COLUMNS do
+    --       love.graphics.line((i * j * SCALED_GRID) + PADDING, PADDING, (i * j * SCALED_GRID) + PADDING, HEIGHT - PADDING)
+    --   end
+
+    --   for j = 0, ROWS do
+    --       love.graphics.line(((i - 1) * COLUMNS * SCALED_GRID) + PADDING, (i * j * SCALED_GRID) + PADDING, (i * COLUMNS * SCALED_GRID), (i * j * SCALED_GRID) + PADDING)
+    --   end
+    -- end
+
+    function love.draw()
+      for d = 0, DEPTH - 1 do
+          local x_offset = d * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+          local y_offset = PADDING
+  
+          -- Draw vertical lines
+          for j = 0, COLUMNS do
+              local x = x_offset + j * SCALED_GRID
+              love.graphics.line(x, y_offset, x, y_offset + ROWS * SCALED_GRID)
+          end
+  
+          -- Draw horizontal lines
+          for i = 0, ROWS do
+              local y = y_offset + i * SCALED_GRID
+              love.graphics.line(x_offset, y, x_offset + COLUMNS * SCALED_GRID, y)
+          end
       end
-      for i = 1, ROWS + 1 do
-          love.graphics.line(0, i * SCALED_GRID, WIDTH * SCALED_GRID, i * SCALED_GRID)
-      end
-    end
+  end
+  
 
     for i = 1, table.getn(board) do
         for j = 1, table.getn(board[i]) do
