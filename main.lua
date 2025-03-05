@@ -118,8 +118,8 @@ function love.draw()
         love.graphics.line(0, i * SCALED_GRID, WIDTH * SCALED_GRID, i * SCALED_GRID)
     end
 
-    for i = 1, table.getn(board) do
-        for j = 1, table.getn(board[i]) do
+    for i = 1, #board do
+        for j = 1, #board[i] do
             if board[i][j] == 1 then
                 love.graphics.setColor(1, 1, 1)
                 love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
@@ -152,8 +152,8 @@ function new_piece()
 end
 
 function place_piece(board, piece)
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][piece.position.x + j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 2
             end
@@ -164,8 +164,8 @@ function place_piece(board, piece)
 end
 
 function clear_piece(board, piece)
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][piece.position.x + j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 0
             end
@@ -176,8 +176,8 @@ end
 function lower_piece(board, piece)
     local new_y = piece.position.y + 1
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[new_y + i][piece.position.x + j] == 2 and piece.shape[i][j] == 1 then
                 place_piece(board, piece)
                 return
@@ -191,8 +191,8 @@ function lower_piece(board, piece)
     clear_piece(board, piece)
     piece.position.y = new_y
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 1
             elseif board[piece.position.y + i][piece.position.x + j] == 1 and piece.shape[i][j] == 1 then
@@ -207,13 +207,13 @@ end
 function shift_piece(board, piece, dir)
     local new_x = piece.position.x + dir
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][new_x + j] == 0 and piece.shape[i][j] == 1 then
                 if new_x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET then
-                    return
+                    return false
                 elseif new_x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
-                    return
+                    return false
                 end
             end
         end
@@ -222,8 +222,8 @@ function shift_piece(board, piece, dir)
     clear_piece(board, piece)
     piece.position.x = new_x
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 1
             end
@@ -234,28 +234,71 @@ end
 function rotate_piece(board, piece, dir)
     rotated_shape = {}
 
-    for i = 1, table.getn(piece.shape) do
+    -- Creates empty table for rotated piece
+    for i = 1, #piece.shape do
         rotated_shape[i] = {}
-        for j = 1, table.getn(piece.shape[i]) do
+        for j = 1, #piece.shape[i] do
             rotated_shape[i][j] = 0
         end
     end
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    -- Fills rotated_shape with the rotated piece
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if dir == 1 then
-                rotated_shape[j][table.getn(piece.shape) - i + 1] = piece.shape[i][j]  -- Clockwise
+                rotated_shape[j][#piece.shape - i + 1] = piece.shape[i][j]  -- Clockwise
             else
-                rotated_shape[table.getn(piece.shape[i]) - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
+                rotated_shape[#piece.shape[i] - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
             end
         end
     end
 
+    -- Store the original shape in case we need to revert
+    local original_shape = piece.shape
     piece.shape = rotated_shape
-    clear_piece(board, piece)
 
-    for i = 1, table.getn(piece.shape) do
-        for j = 1, table.getn(piece.shape[i]) do
+    -- Check if the rotated piece is outside the board
+    local function is_out_of_bounds()
+        for i = 1, #piece.shape do
+            for j = 1, #piece.shape[i] do
+                if piece.shape[i][j] == 1 then
+                    if piece.position.x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET or piece.position.x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
+                        return true
+                    end
+                end
+            end
+        end
+
+        return false
+    end
+
+    -- Attempt to shift piece inside board
+    if is_out_of_bounds() then
+        -- Try shifting left or right
+        local shift_success = false
+        for shift = -2, 2 do 
+            if shift < 0 then
+                shift_piece(board, piece, -1)
+            else
+                shift_piece(board, piece, 1)
+            end
+
+            if not is_out_of_bounds() then
+                shift_success = true
+                break
+            end
+        end
+
+        -- If no shift worked, revert rotation
+        if not shift_success then
+            piece.shape = original_shape  -- Reset shape
+        end
+    end
+
+    -- Clear and redraw board with rotated piece
+    clear_piece(board, piece)
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
             if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 1
             end
@@ -268,7 +311,6 @@ end
 function love.keypressed(key)
     -- Debug
     if love.keyboard.isDown("s", "down") then
-    -- if love.keyboard.isDown("s", "down") and tick > 0.025 then
         lower_piece(board, current_piece)
     end
 
@@ -286,8 +328,13 @@ end
 function love.update(dt)
     tick = tick + dt
 
-    if tick > 0.25 then
-        tick = 0
-        lower_piece(board, current_piece)
-    end
+    -- if tick > 0.25 then
+    --     tick = 0
+    --     lower_piece(board, current_piece)
+    -- end
+
+    -- if love.keyboard.isDown("s", "down") and tick > 0.025 then
+    --     tick = 0
+    --     lower_piece(board, current_piece)
+    -- end
 end
