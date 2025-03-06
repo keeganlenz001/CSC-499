@@ -131,6 +131,43 @@ function love.draw()
     end
 end
 
+function is_valid_position(board, piece)
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
+            if piece.shape[i][j] == 1 then
+                -- Check for vertical bounds
+                if piece.position.y + i > ROWS + ROWS_BUFFER - ROWS_OFFSET then
+                    return false
+                end
+
+                -- Check for horizontal bounds
+                if piece.position.x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET or 
+                   piece.position.x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
+                    return false
+                end
+                
+                -- Check for collision with placed pieces
+                if board[piece.position.y + i][piece.position.x + j] == 2 then
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
+end
+
+function instantiate_piece(board, piece)
+    for i = 1, #piece.shape do
+        for j = 1, #piece.shape[i] do
+            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
+                board[piece.position.y + i][piece.position.x + j] = 1
+            end
+        end
+    end
+end
+
+
 function new_piece()
     piece = math.random(7)
 
@@ -174,61 +211,30 @@ function clear_piece(board, piece)
 end
 
 function lower_piece(board, piece)
-    local new_y = piece.position.y + 1
-
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if board[new_y + i][piece.position.x + j] == 2 and piece.shape[i][j] == 1 then
-                place_piece(board, piece)
-                return
-            elseif board[new_y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 and new_y + i > ROWS + ROWS_BUFFER - ROWS_OFFSET then
-                place_piece(board, piece)
-                return
-            end
-        end
-    end
-
     clear_piece(board, piece)
-    piece.position.y = new_y
 
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
-                board[piece.position.y + i][piece.position.x + j] = 1
-            elseif board[piece.position.y + i][piece.position.x + j] == 1 and piece.shape[i][j] == 1 then
-                clear_piece(board, piece)
-                piece.position.y = piece.position.y - 1
-                place_piece(board,piece)
-            end
-        end
+    local original_y = piece.position.y
+    piece.position.y = piece.position.y + 1
+
+    if not is_valid_position(board, piece) then
+        piece.position.y = original_y
+        place_piece(board, piece)
     end
+
+    instantiate_piece(board, piece)
 end
 
 function shift_piece(board, piece, dir)
-    local new_x = piece.position.x + dir
+    local original_x = piece.position.x
+    piece.position.x = piece.position.x + dir
 
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if board[piece.position.y + i][new_x + j] == 0 and piece.shape[i][j] == 1 then
-                if new_x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET then
-                    return false
-                elseif new_x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
-                    return false
-                end
-            end
-        end
+    if not is_valid_position(board, piece) then
+        piece.position.x = original_x
+        return
     end
 
     clear_piece(board, piece)
-    piece.position.x = new_x
-
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
-                board[piece.position.y + i][piece.position.x + j] = 1
-            end
-        end
-    end
+    instantiate_piece(board, piece)
 end
 
 function rotate_piece(board, piece, dir)
@@ -248,7 +254,7 @@ function rotate_piece(board, piece, dir)
             if dir == 1 then
                 rotated_shape[j][#piece.shape - i + 1] = piece.shape[i][j]  -- Clockwise
             else
-                rotated_shape[#piece.shape[i] - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
+                rotated_shape[#piece.shape - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
             end
         end
     end
@@ -257,53 +263,36 @@ function rotate_piece(board, piece, dir)
     local original_shape = piece.shape
     piece.shape = rotated_shape
 
-    -- Check if the rotated piece is outside the board
-    local function is_out_of_bounds()
-        for i = 1, #piece.shape do
-            for j = 1, #piece.shape[i] do
-                if piece.shape[i][j] == 1 then
-                    if piece.position.x + j > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET or piece.position.x + j <= COLUMNS_BUFFER - COLUMNS_OFFSET then
-                        return true
-                    end
-                end
-            end
-        end
+    local original_x = piece.position.x
 
-        return false
-    end
-
-    -- Attempt to shift piece inside board
-    if is_out_of_bounds() then
-        -- Try shifting left or right
+    -- Check if the rotation is valid in current position
+    if not is_valid_position(board, piece) then
         local shift_success = false
-        for shift = -2, 2 do 
-            if shift < 0 then
-                shift_piece(board, piece, -1)
-            else
-                shift_piece(board, piece, 1)
-            end
-
-            if not is_out_of_bounds() then
+        
+        -- Try different wall kicks (offsets)
+        local kicks = {-1, 1, -2, 2}  -- Try closer offsets first
+        
+        for _, kick in ipairs(kicks) do
+            -- Apply the kick offset
+            piece.position.x = original_x + kick
+            
+            -- Check if this position is valid
+            if is_valid_position(board, piece) then
                 shift_success = true
                 break
             end
         end
-
-        -- If no shift worked, revert rotation
+        
+        -- If no valid position was found, revert rotation
         if not shift_success then
-            piece.shape = original_shape  -- Reset shape
+            piece.shape = original_shape
+            piece.position.x = original_x
         end
     end
-
+    
     -- Clear and redraw board with rotated piece
     clear_piece(board, piece)
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
-                board[piece.position.y + i][piece.position.x + j] = 1
-            end
-        end
-    end
+    instantiate_piece(board, piece)
 end
 
 
