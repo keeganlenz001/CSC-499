@@ -5,9 +5,9 @@ GRID = 8
 ROWS = 20
 COLUMNS = 10
 
-ROWS_BUFFER = 5
+ROWS_BUFFER = 3
 COLUMNS_BUFFER = 3
-ROWS_OFFSET = 3
+ROWS_OFFSET = 2
 COLUMNS_OFFSET = 2
 
 SCALE = 4
@@ -107,6 +107,7 @@ function love.load()
     end
 
     current_piece = new_I_PIECE()
+    instantiate_piece(board, current_piece)
 end
 
 function love.draw()
@@ -127,6 +128,34 @@ function love.draw()
                 love.graphics.setColor(0.25, 0.25, 0.25)
                 love.graphics.rectangle("fill", (j - COLUMNS_OFFSET) * SCALED_GRID, (i - ROWS_OFFSET) * SCALED_GRID, SCALED_GRID, SCALED_GRID)
             end
+        end
+    end
+end
+
+function line_clear(board)
+    local line_clear_count = 0 -- Will be used for scoring
+
+    for i = 1, #board do
+        full_line = true
+        for j = COLUMNS_OFFSET, #board[i] - COLUMNS_BUFFER + 1 do
+            if board[i][j] ~= 2 then
+                full_line = false
+            end
+        end
+
+        if full_line then
+            line_clear_count = line_clear_count + 1
+
+            -- Move all rows above this line down by one row
+            for row = i, 2, -1 do  -- Start from the cleared line and move upward
+                for col = 1, #board[row] do
+                    board[row][col] = board[row-1][col]  -- Copy from row above
+                end
+            end
+            
+            -- Don't increment i since we need to check the same row again
+            -- (since we just moved a new row into this position)
+            i = i - 1
         end
     end
 end
@@ -169,33 +198,40 @@ end
 
 
 function new_piece()
-    piece = math.random(7)
+    -- Debug
+    current_piece = new_I_PIECE()
 
-    if piece == 1 then
-        current_piece = new_T_PIECE()
-    elseif piece == 2 then
-        current_piece = new_J_PIECE()
-    elseif piece == 3 then
-        current_piece = new_Z_PIECE()
-    elseif piece == 4 then
-        current_piece = new_O_PIECE()
-    elseif  piece == 5 then
-        current_piece = new_S_PIECE()
-    elseif piece == 6 then
-        current_piece = new_L_PIECE()
-    elseif piece == 7 then
-        current_piece = new_I_PIECE()
-    end
+    -- piece = math.random(7)
+
+    -- if piece == 1 then
+    --     current_piece = new_T_PIECE()
+    -- elseif piece == 2 then
+    --     current_piece = new_J_PIECE()
+    -- elseif piece == 3 then
+    --     current_piece = new_Z_PIECE()
+    -- elseif piece == 4 then
+    --     current_piece = new_O_PIECE()
+    -- elseif  piece == 5 then
+    --     current_piece = new_S_PIECE()
+    -- elseif piece == 6 then
+    --     current_piece = new_L_PIECE()
+    -- elseif piece == 7 then
+    --     current_piece = new_I_PIECE()
+    -- end
+
+    instantiate_piece(board, current_piece)
 end
 
 function place_piece(board, piece)
     for i = 1, #piece.shape do
         for j = 1, #piece.shape[i] do
-            if board[piece.position.y + i][piece.position.x + j] == 1 then
+            if board[piece.position.y + i][piece.position.x + j] == 0 and piece.shape[i][j] == 1 then
                 board[piece.position.y + i][piece.position.x + j] = 2
             end
         end
     end
+
+    line_clear(board)
 
     new_piece()
 end
@@ -219,21 +255,22 @@ function lower_piece(board, piece)
     if not is_valid_position(board, piece) then
         piece.position.y = original_y
         place_piece(board, piece)
+        return
     end
 
     instantiate_piece(board, piece)
 end
 
 function shift_piece(board, piece, dir)
+    clear_piece(board, piece)
+
     local original_x = piece.position.x
     piece.position.x = piece.position.x + dir
 
     if not is_valid_position(board, piece) then
         piece.position.x = original_x
-        return
     end
 
-    clear_piece(board, piece)
     instantiate_piece(board, piece)
 end
 
@@ -289,7 +326,7 @@ function rotate_piece(board, piece, dir)
             piece.position.x = original_x
         end
     end
-    
+
     -- Clear and redraw board with rotated piece
     clear_piece(board, piece)
     instantiate_piece(board, piece)
@@ -322,8 +359,8 @@ function love.update(dt)
     --     lower_piece(board, current_piece)
     -- end
 
-    -- if love.keyboard.isDown("s", "down") and tick > 0.025 then
-    --     tick = 0
-    --     lower_piece(board, current_piece)
-    -- end
+    if love.keyboard.isDown("s", "down") and tick > 0.025 then
+        tick = 0
+        lower_piece(board, current_piece)
+    end
 end
