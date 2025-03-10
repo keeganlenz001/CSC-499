@@ -150,8 +150,8 @@ end
 
 function love.draw()
     love.graphics.setColor(1, 1, 1)
-    for depth = 0, DEPTH - 1 do
-        local x_offset = depth * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+    for depth = 1, #board do
+        local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
         local y_offset = PADDING
 
         -- Draw horizontal lines
@@ -165,12 +165,8 @@ function love.draw()
             local x = x_offset + (column * SCALED_GRID)
             love.graphics.line(x, y_offset, x, y_offset + ROWS * SCALED_GRID)
         end
-    end
 
-    for depth = 1, #board do
-        local x_offset = depth * (COLUMNS * SCALED_GRID + PADDING) + PADDING
-        local y_offset = PADDING
-
+        -- Draw blocks
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
                 if board[depth][row][column] == 1 then
@@ -233,7 +229,7 @@ function is_valid_position(board, piece)
                     end
                     
                     -- Check for collision with placed pieces
-                    if board[depth][piece.position.y + i][piece.position.x + j] == 2 then
+                    if board[depth][piece.position.y + row][piece.position.x + column] == 2 then
                         return false
                     end
                 end
@@ -248,8 +244,8 @@ function set_piece(board, piece)
     for depth = 1, #piece.shape do
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if board[depth][piece.position.y + row][piece.position.x + column] == 0 and piece.shape[depth][row][column] == 1 then
-                    board[depth][piece.position.y + row][piece.position.x + column] = 1
+                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == 0 and piece.shape[depth][row][column] == 1 then
+                    board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = 1
                 end
             end
         end
