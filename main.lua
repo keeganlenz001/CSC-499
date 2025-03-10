@@ -186,10 +186,11 @@ function line_clear(board)
 
     for depth = 1, #board do
         for row = 1, #board[depth] do
-            full_line = true
+            local full_line = true  -- Use local to avoid global variable
             for column = COLUMNS_OFFSET, #board[depth][row] - COLUMNS_BUFFER + 1 do
                 if board[depth][row][column] ~= 2 then
                     full_line = false
+                    break  -- No need to check more cells in this row
                 end
             end
 
@@ -197,13 +198,18 @@ function line_clear(board)
                 line_clear_count = line_clear_count + 1
 
                 -- Move all rows above this line down by one row
-                for i = row, 2, -1 do  -- Start from the cleared line and move upward
-                    for j = 1, #board[i] do
-                        board[i][j] = board[i - 1][j]  -- Copy from row above
+                for move_row = row, 2, -1 do  -- Start from the cleared line and move upward
+                    for column = 1, #board[depth][move_row] do
+                        board[depth][move_row][column] = board[depth][move_row - 1][column]  -- Copy from row above
                     end
                 end
                 
-                -- Don't increment i since we need to check the same row again
+                -- Clear the top row
+                for column = 1, #board[depth][1] do
+                    board[depth][1][column] = 0
+                end
+                
+                -- Don't increment row since we need to check the same row again
                 -- (since we just moved a new row into this position)
                 row = row - 1
             end
@@ -319,7 +325,7 @@ function lower_piece(board, piece)
     set_piece(board, piece)
 end
 
-function shift_piece(board, piece, dir)
+function shift_piece2D(board, piece, dir)
     clear_piece(board, piece)
 
     local original_x = piece.position.x
@@ -332,24 +338,42 @@ function shift_piece(board, piece, dir)
     set_piece(board, piece)
 end
 
-function rotate_piece(board, piece, dir)
+-- function shift_piece3D(board, piece, dir)
+--     clear_piece(board, piece)
+
+--     local original_z = piece.position.z
+--     piece.position.z = piece.position.z + dir
+
+--     if not is_valid_position(board, piece) then
+--         piece.position.z = original_z
+--     end
+
+--     set_piece(board, piece)
+-- end
+
+function rotate_piece2D(board, piece, dir)
     rotated_shape = {}
 
     -- Creates empty table for rotated piece
-    for i = 1, #piece.shape do
-        rotated_shape[i] = {}
-        for j = 1, #piece.shape[i] do
-            rotated_shape[i][j] = 0
+    for depth = 1, #piece.shape do 
+        rotated_shape[depth] = {}
+        for row = 1, #piece.shape[depth] do
+            rotated_shape[depth][row] = {}
+            for column = 1, #piece.shape[depth][row] do
+                rotated_shape[depth][row][column] = 0
+            end
         end
     end
 
     -- Fills rotated_shape with the rotated piece
-    for i = 1, #piece.shape do
-        for j = 1, #piece.shape[i] do
-            if dir == 1 then
-                rotated_shape[j][#piece.shape - i + 1] = piece.shape[i][j]  -- Clockwise
-            else
-                rotated_shape[#piece.shape - j + 1][i] = piece.shape[i][j]  -- Counterclockwise
+    for depth = 1, #piece.shape do
+        for row = 1, #piece.shape[depth] do
+            for column = 1, #piece.shape[depth][row] do
+                if dir == 1 then
+                    rotated_shape[depth][column][#piece.shape[depth] - row + 1] = piece.shape[depth][row][column] -- Clockwise
+                else
+                    rotated_shape[depth][#piece.shape[depth] - column + 1][row] = piece.shape[depth][row][column] -- Counterclockwise
+                end
             end
         end
     end
@@ -399,13 +423,13 @@ function love.keypressed(key)
     end
 
     if key == "a" or key == "left" then
-        shift_piece(board, current_piece, -1)
+        shift_piece2D(board, current_piece, -1)
     elseif key == "d" or key == "right" then
-        shift_piece(board, current_piece, 1)
+        shift_piece2D(board, current_piece, 1)
     elseif key == "q" then
-        rotate_piece(board, current_piece, -1)
+        rotate_piece2D(board, current_piece, -1)
     elseif key == "e" then
-        rotate_piece(board, current_piece, 1)
+        rotate_piece2D(board, current_piece, 1)
     end
 end
 
