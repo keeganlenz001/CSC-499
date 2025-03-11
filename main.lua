@@ -7,10 +7,13 @@ ROWS = 20
 COLUMNS = 10
 DEPTH = 4
 
-ROWS_BUFFER = 3
-COLUMNS_BUFFER = 3
-ROWS_OFFSET = 2
-COLUMNS_OFFSET = 2
+ROW_BUFFER = 3
+COLUMN_BUFFER = 3
+DEPTH_BUFFER = 3
+
+ROW_OFFSET = 2
+COLUMN_OFFSET = 2
+DEPTH_OFFSET = 3
 
 SCALE = 3
 
@@ -24,11 +27,11 @@ function love.load()
     tick = 0
 
     board = {}
-    for i = 1, DEPTH do
+    for i = 1, DEPTH + DEPTH_BUFFER do
         table.insert(board, {})
-        for j = 1, ROWS + ROWS_BUFFER do
+        for j = 1, ROWS + ROW_BUFFER do
             table.insert(board[i], {})
-            for k = 1, COLUMNS + COLUMNS_BUFFER do
+            for k = 1, COLUMNS + COLUMN_BUFFER do
                 table.insert(board[i][j], 0)
             end
         end
@@ -40,10 +43,10 @@ function love.load()
 
         for depth = 2, #shape do
             shape3D[depth] = {}
-            for i = 1, #shape do
-                shape3D[depth][i] = {}
-                for j = 1, #shape[i] do
-                    shape3D[depth][i][j] = 0
+            for row = 1, #shape do
+                shape3D[depth][row] = {}
+                for column = 1, #shape[row] do
+                    shape3D[depth][row][column] = 0
                 end
             end
         end
@@ -149,8 +152,8 @@ function love.load()
 end
 
 function love.draw()
-    love.graphics.setColor(1, 1, 1)
-    for depth = 1, #board do
+    for depth = 1, DEPTH do
+        love.graphics.setColor(1, 1, 1)
         local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
         local y_offset = PADDING
 
@@ -171,79 +174,14 @@ function love.draw()
             for column = 1, #board[depth][row] do
                 if board[depth][row][column] == 1 then
                     love.graphics.setColor(1, 1, 1)
-                    love.graphics.rectangle("fill", x_offset + ((column - COLUMNS_OFFSET) * SCALED_GRID), y_offset + ((row - ROWS_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
+                    love.graphics.rectangle("fill", x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID), y_offset + ((row - ROW_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
                 elseif board[depth][row][column] == 2 then
                     love.graphics.setColor(0.25, 0.25, 0.25)
-                    love.graphics.rectangle("fill", x_offset + ((column - COLUMNS_OFFSET) * SCALED_GRID), y_offset + ((row - ROWS_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
+                    love.graphics.rectangle("fill", x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID), y_offset + ((row - ROW_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
                 end
             end
         end
     end
-end
-
-function line_clear(board)
-    local line_clear_count = 0 -- Will be used for scoring
-
-    for depth = 1, #board do
-        for row = 1, #board[depth] do
-            local full_line = true  -- Use local to avoid global variable
-            for column = COLUMNS_OFFSET, #board[depth][row] - COLUMNS_BUFFER + 1 do
-                if board[depth][row][column] ~= 2 then
-                    full_line = false
-                    break  -- No need to check more cells in this row
-                end
-            end
-
-            if full_line then
-                line_clear_count = line_clear_count + 1
-
-                -- Move all rows above this line down by one row
-                for move_row = row, 2, -1 do  -- Start from the cleared line and move upward
-                    for column = 1, #board[depth][move_row] do
-                        board[depth][move_row][column] = board[depth][move_row - 1][column]  -- Copy from row above
-                    end
-                end
-                
-                -- Clear the top row
-                for column = 1, #board[depth][1] do
-                    board[depth][1][column] = 0
-                end
-                
-                -- Don't increment row since we need to check the same row again
-                -- (since we just moved a new row into this position)
-                row = row - 1
-            end
-        end
-    end
-end
-
-function is_valid_position(board, piece)
-    for depth = 1, #piece.shape do
-        for row = 1, #piece.shape[depth] do
-            for column = 1, #piece.shape[depth][row] do
-
-                if piece.shape[depth][row][column] == 1 then
-                    -- Check for vertical bounds
-                    if piece.position.y + row > ROWS + ROWS_BUFFER - ROWS_OFFSET then
-                        return false
-                    end
-
-                    -- Check for horizontal bounds
-                    if piece.position.x + column > COLUMNS + COLUMNS_BUFFER - COLUMNS_OFFSET or 
-                    piece.position.x + column <= COLUMNS_BUFFER - COLUMNS_OFFSET then
-                        return false
-                    end
-                    
-                    -- Check for collision with placed pieces
-                    if board[depth][piece.position.y + row][piece.position.x + column] == 2 then
-                        return false
-                    end
-                end
-            end
-        end
-    end
-
-    return true
 end
 
 function set_piece(board, piece)
@@ -252,6 +190,18 @@ function set_piece(board, piece)
             for column = 1, #piece.shape[depth][row] do
                 if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == 0 and piece.shape[depth][row][column] == 1 then
                     board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = 1
+                end
+            end
+        end
+    end
+end
+
+function clear_piece(board, piece)
+    for depth = 1, #piece.shape do 
+        for row = 1, #piece.shape[depth] do
+            for column = 1, #piece.shape[depth][row] do
+                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == 1 then
+                    board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = 0
                 end
             end
         end
@@ -283,31 +233,42 @@ function new_piece()
     set_piece(board, current_piece)
 end
 
-function place_piece(board, piece)
+function is_valid_position(board, piece)
     for depth = 1, #piece.shape do
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if board[depth][piece.position.y + row][piece.position.x + column] == 0 and piece.shape[depth][row][column] == 1 then
-                    board[depth][piece.position.y + row][piece.position.x + column] = 2
+                if piece.shape[depth][row][column] == 1 then
+                    local board_x = piece.position.x + column
+                    local board_y = piece.position.y + row
+                    local board_z = piece.position.z + depth
+
+                    -- Check for horizontal bounds
+                    if board_x > COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET or 
+                    board_x <= COLUMN_BUFFER - COLUMN_OFFSET then
+                        return false
+                    end
+
+                    -- Check for vertical bounds
+                    if board_y > ROWS + ROW_BUFFER - ROW_OFFSET then
+                        return false
+                    end
+
+                    -- Check for depth bounds
+                    if board_z > DEPTH + DEPTH_BUFFER - DEPTH_OFFSET or
+                    board_z <= DEPTH_BUFFER - DEPTH_OFFSET then
+                        return false
+                    end
+                    
+                    -- Check for collision with placed pieces
+                    if board[board_z][board_y][board_x] == 2 then
+                        return false
+                    end
                 end
             end
         end
     end
 
-    line_clear(board)
-    new_piece()
-end
-
-function clear_piece(board, piece)
-    for depth = 1, #piece.shape do 
-        for row = 1, #piece.shape[depth] do
-            for column = 1, #piece.shape[depth][row] do
-                if board[depth][piece.position.y + row][piece.position.x + column] == 1 then
-                    board[depth][piece.position.y + row][piece.position.x + column] = 0
-                end
-            end
-        end
-    end
+    return true
 end
 
 function lower_piece(board, piece)
@@ -338,18 +299,18 @@ function shift_piece2D(board, piece, dir)
     set_piece(board, piece)
 end
 
--- function shift_piece3D(board, piece, dir)
---     clear_piece(board, piece)
+function shift_piece3D(board, piece, dir)
+    clear_piece(board, piece)
 
---     local original_z = piece.position.z
---     piece.position.z = piece.position.z + dir
+    local original_z = piece.position.z
+    piece.position.z = piece.position.z + dir
 
---     if not is_valid_position(board, piece) then
---         piece.position.z = original_z
---     end
+    if not is_valid_position(board, piece) then
+        piece.position.z = original_z
+    end
 
---     set_piece(board, piece)
--- end
+    set_piece(board, piece)
+end
 
 function rotate_piece2D(board, piece, dir)
     rotated_shape = {}
@@ -414,6 +375,73 @@ function rotate_piece2D(board, piece, dir)
     set_piece(board, piece)
 end
 
+function place_piece(board, piece)
+    for depth = 1, #piece.shape do
+        for row = 1, #piece.shape[depth] do
+            for column = 1, #piece.shape[depth][row] do
+                local board_x = piece.position.x + column
+                local board_y = piece.position.y + row
+                local board_z = piece.position.z + depth
+
+                if board[board_z][board_y][board_x] == 0 and piece.shape[depth][row][column] == 1 then
+                    board[board_z][board_y][board_x] = 2
+                end
+            end
+        end
+    end
+
+    line_clear(board)
+    new_piece()
+end
+
+function line_clear(board)
+    local line_clear_count = 0
+
+    for row = 1, ROWS + ROW_BUFFER do
+        local row_full_across_all_depths = true
+        
+        -- Check if this row is full across all depths
+        for depth = DEPTH_OFFSET, DEPTH + DEPTH_OFFSET do
+            local depth_row_full = true
+            for column = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
+                if board[depth][row][column] ~= 2 then
+                    depth_row_full = false
+                    break
+                end
+            end
+            
+            -- If this row isn't full in any depth, then it's not full across all depths
+            if not depth_row_full then
+                row_full_across_all_depths = false
+                break
+            end
+        end
+        
+        -- If the row is full across all depths, clear it everywhere
+        if row_full_across_all_depths then
+            line_clear_count = line_clear_count + 1
+            
+            -- Clear this row in all depths and move rows down
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                -- Move all rows above this line down by one row
+                for move_row = row, 2, -1 do
+                    for column = 1, COLUMNS + COLUMN_BUFFER do
+                        board[depth][move_row][column] = board[depth][move_row - 1][column]
+                    end
+                end
+                
+                -- Clear the top row
+                for column = 1, COLUMNS + COLUMN_BUFFER do
+                    board[depth][1][column] = 0
+                end
+            end
+            
+            -- Don't increment row since we need to check the same row again
+            row = row - 1
+        end
+    end
+end
+
 
 
 function love.keypressed(key)
@@ -426,6 +454,10 @@ function love.keypressed(key)
         shift_piece2D(board, current_piece, -1)
     elseif key == "d" or key == "right" then
         shift_piece2D(board, current_piece, 1)
+    elseif key == "space" then
+        shift_piece3D(board, current_piece, 1)
+    elseif key == "lshift" then
+        shift_piece3D(board, current_piece, -1)
     elseif key == "q" then
         rotate_piece2D(board, current_piece, -1)
     elseif key == "e" then
