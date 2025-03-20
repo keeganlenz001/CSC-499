@@ -1,11 +1,11 @@
 BOARD_WIDTH = 80
 BOARD_HEIGHT = 160
-PADDING = 16
+-- PADDING = 16
 GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 4
+DEPTH = 2
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -13,11 +13,12 @@ DEPTH_BUFFER = 3
 
 ROW_OFFSET = 2
 COLUMN_OFFSET = 2
-DEPTH_OFFSET = 3
+DEPTH_OFFSET = 0 -- The first depth of a shape will always contain part of the 3D shape
 
 SCALE = 3
 
 SCALED_GRID = GRID * SCALE
+PADDING = SCALED_GRID
 
 WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
 HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2)
@@ -254,8 +255,8 @@ function is_valid_position(board, piece)
                     end
 
                     -- Check for depth bounds
-                    if board_z > DEPTH + DEPTH_BUFFER - DEPTH_OFFSET or
-                    board_z <= DEPTH_BUFFER - DEPTH_OFFSET then
+                    if board_z > DEPTH or
+                    board_z < 1 then
                         return false
                     end
                     
@@ -401,7 +402,7 @@ function line_clear(board)
         local row_full_across_all_depths = true
         
         -- Check if this row is full across all depths
-        for depth = DEPTH_OFFSET, DEPTH + DEPTH_OFFSET do
+        for depth = 1, DEPTH do
             local depth_row_full = true
             for column = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
                 if board[depth][row][column] ~= 2 then
@@ -422,7 +423,7 @@ function line_clear(board)
             line_clear_count = line_clear_count + 1
             
             -- Clear this row in all depths and move rows down
-            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+            for depth = 1, DEPTH do
                 -- Move all rows above this line down by one row
                 for move_row = row, 2, -1 do
                     for column = 1, COLUMNS + COLUMN_BUFFER do
