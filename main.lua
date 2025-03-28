@@ -5,7 +5,7 @@ GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 2
+DEPTH = 4
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -13,7 +13,7 @@ DEPTH_BUFFER = 3
 
 ROW_OFFSET = 2
 COLUMN_OFFSET = 2
-DEPTH_OFFSET = 0 -- The first depth of a shape will always contain part of the 3D shape
+DEPTH_OFFSET = 2 -- Every piece is on the second depth layer
 
 SCALE = 3
 
@@ -40,14 +40,18 @@ function love.load()
 
     local function get_shape3D(shape)
         local shape3D = {}
-        shape3D[1] = shape
 
-        for depth = 2, #shape do
-            shape3D[depth] = {}
-            for row = 1, #shape do
-                shape3D[depth][row] = {}
-                for column = 1, #shape[row] do
-                    shape3D[depth][row][column] = 0
+        for depth = 1, #shape do
+            if depth == math.ceil(#shape / 2) then
+                shape3D[depth] = shape
+            else
+                shape3D[depth] = {}
+
+                for row = 1, #shape do
+                    shape3D[depth][row] = {}
+                    for column = 1, #shape[row] do
+                        shape3D[depth][row][column] = 0
+                    end
                 end
             end
         end
@@ -64,7 +68,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 5, y = 0, z = 0}
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -77,7 +81,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 5, y = 0, z = 0}
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -90,7 +94,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 5, y = 0, z = 0}
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -104,7 +108,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 4, y = 0, z = 0}
+            position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -117,7 +121,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 5, y = 0, z = 0}
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2)  - 1}
         }
     end
 
@@ -130,7 +134,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 5, y = 0, z = 0}
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -144,7 +148,7 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
-            position = {x = 4, y = 0, z = 0}
+            position = {x = 4, y = 0, z = math.ceil(DEPTH / 2)  - 1}
         }
     end
 
@@ -169,8 +173,13 @@ function love.draw()
             local x = x_offset + (column * SCALED_GRID)
             love.graphics.line(x, y_offset, x, y_offset + ROWS * SCALED_GRID)
         end
+    end
 
-        -- Draw blocks
+    -- Draw blocks
+    for depth = 1, #board do
+        local y_offset = PADDING
+        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+        
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
                 if board[depth][row][column] == 1 then
@@ -255,8 +264,8 @@ function is_valid_position(board, piece)
                     end
 
                     -- Check for depth bounds
-                    if board_z > DEPTH or
-                    board_z < 1 then
+                    if board_z > DEPTH + DEPTH_BUFFER - DEPTH_OFFSET or
+                    board_z < DEPTH_OFFSET then
                         return false
                     end
                     
@@ -374,6 +383,38 @@ function rotate_piece2D(board, piece, dir)
     -- Clear and redraw board with rotated piece
     clear_piece(board, piece)
     set_piece(board, piece)
+end
+
+function twist_piece(board, piece, dir)
+    rotated_shape = {}
+
+    -- Creates empty table for rotated piece
+    for depth = 1, #piece.shape do 
+        rotated_shape[depth] = {}
+        for row = 1, #piece.shape[depth] do
+            rotated_shape[depth][row] = {}
+            for column = 1, #piece.shape[depth][row] do
+                rotated_shape[depth][row][column] = 0
+            end
+        end
+    end
+
+    -- Fills rotated_shape with the rotated piece
+    for depth = 1, #piece.shape do
+        for row = 1, #piece.shape[depth] do
+            for column = 1, #piece.shape[depth][row] do
+                if dir == 1 then
+                    rotated_shape[depth][column][#piece.shape[depth] - row + 1] = piece.shape[depth][row][column] -- Clockwise
+                else
+                    rotated_shape[depth][#piece.shape[depth] - column + 1][row] = piece.shape[depth][row][column] -- Counterclockwise
+                end
+            end
+        end
+    end
+end
+
+function tilt_piece(board, piece, dir)
+
 end
 
 function place_piece(board, piece)
