@@ -90,6 +90,14 @@ function love.load()
             {0, 0, 0},
             {1, 1, 0},
             {0, 1, 1}
+
+            -- {1, 1, 0},
+            -- {0, 1, 1},
+            -- {0, 0, 0}
+
+            -- {0, 0, 1},
+            -- {0, 1, 1},
+            -- {0, 1, 0}
         }
 
         return {
@@ -149,6 +157,31 @@ function love.load()
         return {
             shape = get_shape3D(shape),
             position = {x = 4, y = 0, z = math.ceil(DEPTH / 2)  - 1}
+        }
+    end
+
+    function new_DEBUG_PIECE()
+        local shape = {
+            {
+                {0, 1, 0},
+                {0, 0, 0},
+                {0, 0, 0} 
+            },
+            {
+                {0, 1, 0},
+                {0, 1, 0},
+                {0, 0, 0} 
+            },
+            {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0} 
+            }
+        }
+
+        return {
+            shape = shape,
+            position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
 
@@ -220,25 +253,25 @@ end
 
 function new_piece()
     -- Debug
-    current_piece = new_I_PIECE()
+    -- current_piece = new_DEBUG_PIECE()
 
-    -- piece = math.random(7)
+    piece = math.random(7)
 
-    -- if piece == 1 then
-    --     current_piece = new_T_PIECE()
-    -- elseif piece == 2 then
-    --     current_piece = new_J_PIECE()
-    -- elseif piece == 3 then
-    --     current_piece = new_Z_PIECE()
-    -- elseif piece == 4 then
-    --     current_piece = new_O_PIECE()
-    -- elseif  piece == 5 then
-    --     current_piece = new_S_PIECE()
-    -- elseif piece == 6 then
-    --     current_piece = new_L_PIECE()
-    -- elseif piece == 7 then
-    --     current_piece = new_I_PIECE()
-    -- end
+    if piece == 1 then
+        current_piece = new_T_PIECE()
+    elseif piece == 2 then
+        current_piece = new_J_PIECE()
+    elseif piece == 3 then
+        current_piece = new_Z_PIECE()
+    elseif piece == 4 then
+        current_piece = new_O_PIECE()
+    elseif  piece == 5 then
+        current_piece = new_S_PIECE()
+    elseif piece == 6 then
+        current_piece = new_L_PIECE()
+    elseif piece == 7 then
+        current_piece = new_I_PIECE()
+    end
 
     set_piece(board, current_piece)
 end
@@ -322,10 +355,9 @@ function shift_piece3D(board, piece, dir)
     set_piece(board, piece)
 end
 
-function rotate_piece2D(board, piece, dir)
-    rotated_shape = {}
-
-    -- Creates empty table for rotated piece
+function rotate_piece(board, piece, dir)
+    -- Create an empty shape with same dimensions
+    local rotated_shape = {}
     for depth = 1, #piece.shape do 
         rotated_shape[depth] = {}
         for row = 1, #piece.shape[depth] do
@@ -336,14 +368,99 @@ function rotate_piece2D(board, piece, dir)
         end
     end
 
-    -- Fills rotated_shape with the rotated piece
+    -- Z_PIECE example
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 1}, | {1, 1, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- after rotating clockwise
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 1, 0},
+    -- {0, 0, 0}, | {0, 1, 0}, | {0, 1, 0},
+    -- {0, 0, 0}, | {1, 1, 0}, | {0, 0, 0},
+    
+    -- Process each depth layer separately
     for depth = 1, #piece.shape do
+        -- Rotate this depth layer
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if dir == 1 then
-                    rotated_shape[depth][column][#piece.shape[depth] - row + 1] = piece.shape[depth][row][column] -- Clockwise
-                else
-                    rotated_shape[depth][#piece.shape[depth] - column + 1][row] = piece.shape[depth][row][column] -- Counterclockwise
+                if dir == 1 then -- Clockwise
+                    rotated_shape[depth][column][#piece.shape - row + 1] = piece.shape[depth][row][column]
+                else -- Counter-clockwise
+                    rotated_shape[depth][#piece.shape - column + 1][row] = piece.shape[depth][row][column]
+                end
+            end
+        end
+    end
+    
+    -- Store original shape and position in case rotation is invalid
+    local original_shape = piece.shape
+    local original_x = piece.position.x
+    
+    -- Apply the rotation
+    piece.shape = rotated_shape
+    
+    -- Check if the rotation is valid
+    if not is_valid_position(board, piece) then
+        local shift_success = false
+        
+        -- Try wall kicks
+        local kicks = {-1, 1, -2, 2}
+        for _, kick in ipairs(kicks) do
+            piece.position.x = original_x + kick
+            if is_valid_position(board, piece) then
+                shift_success = true
+                break
+            end
+        end
+        
+        -- If no valid position found, revert rotation
+        if not shift_success then
+            piece.shape = original_shape
+            piece.position.x = original_x
+        end
+    end
+    
+    -- Clear and redraw board with rotated piece
+    clear_piece(board, piece)
+    set_piece(board, piece)
+end
+
+
+function twist_piece(board, piece, dir)
+    -- Create a new table for the twisted shape
+    local twisted_shape = {}
+
+    -- Initialize empty twisted shape with the same dimensions as the original
+    for depth = 1, #piece.shape do 
+        twisted_shape[depth] = {}
+        for row = 1, #piece.shape[depth] do
+            twisted_shape[depth][row] = {}
+            for column = 1, #piece.shape[depth][row] do
+                twisted_shape[depth][row][column] = 0
+            end
+        end
+    end
+
+    -- Z_PIECE example
+    -- {0, 0, 0}, | {1, 1, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 1}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- after twisting clockwise 
+    -- {0, 1, 0}, | {0, 1, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 0}, | {0, 1, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- after twisting clockwise again
+    -- {0, 0, 0}, | {0, 1, 1}, | {0, 0, 0},
+    -- {0, 0, 0}, | {1, 1, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+
+    for row = 1, #piece.shape[1] do
+        -- Rotate this row across all depths
+        for depth = 1, #piece.shape do
+            for column = 1, #piece.shape[depth][row] do
+                if dir == 1 then -- Clockwise around Y axis
+                    twisted_shape[column][row][#piece.shape - depth + 1] = piece.shape[depth][row][column]
+                else -- Counter-clockwise around Y axis
+                    twisted_shape[#piece.shape - column + 1][row][depth] = piece.shape[depth][row][column]
                 end
             end
         end
@@ -351,20 +468,20 @@ function rotate_piece2D(board, piece, dir)
 
     -- Store the original shape in case we need to revert
     local original_shape = piece.shape
-    piece.shape = rotated_shape
+    piece.shape = twisted_shape
 
-    local original_x = piece.position.x
+    local original_z = piece.position.z
 
-    -- Check if the rotation is valid in current position
+    -- Check if the twist is valid in current position
     if not is_valid_position(board, piece) then
         local shift_success = false
         
-        -- Try different wall kicks (offsets)
+        -- Try different depth kicks (offsets)
         local kicks = {-1, 1, -2, 2}  -- Try closer offsets first
         
         for _, kick in ipairs(kicks) do
             -- Apply the kick offset
-            piece.position.x = original_x + kick
+            piece.position.z = original_z + kick
             
             -- Check if this position is valid
             if is_valid_position(board, piece) then
@@ -373,48 +490,104 @@ function rotate_piece2D(board, piece, dir)
             end
         end
         
-        -- If no valid position was found, revert rotation
+        -- If no valid position was found, revert twist
         if not shift_success then
             piece.shape = original_shape
-            piece.position.x = original_x
+            piece.position.z = original_z
         end
     end
 
-    -- Clear and redraw board with rotated piece
+    -- Clear and redraw board with twisted piece
     clear_piece(board, piece)
     set_piece(board, piece)
 end
 
-function twist_piece(board, piece, dir)
-    rotated_shape = {}
-
-    -- Creates empty table for rotated piece
+function tilt_piece(board, piece, dir)
+    -- Create an empty shape with same dimensions
+    local tilted_shape = {}
     for depth = 1, #piece.shape do 
-        rotated_shape[depth] = {}
+        tilted_shape[depth] = {}
         for row = 1, #piece.shape[depth] do
-            rotated_shape[depth][row] = {}
+            tilted_shape[depth][row] = {}
             for column = 1, #piece.shape[depth][row] do
-                rotated_shape[depth][row][column] = 0
+                tilted_shape[depth][row][column] = 0
             end
         end
     end
 
-    -- Fills rotated_shape with the rotated piece
-    for depth = 1, #piece.shape do
-        for row = 1, #piece.shape[depth] do
-            for column = 1, #piece.shape[depth][row] do
-                if dir == 1 then
-                    rotated_shape[depth][column][#piece.shape[depth] - row + 1] = piece.shape[depth][row][column] -- Clockwise
-                else
-                    rotated_shape[depth][#piece.shape[depth] - column + 1][row] = piece.shape[depth][row][column] -- Counterclockwise
+    -- Z_PIECE example
+    -- {0, 0, 0}, | {1, 1, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 1}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- after tilting clockwise 
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 1}, | {1, 1, 0},
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- after twisting clockwise again
+    -- {0, 0, 0}, | {0, 0, 0}, | {0, 0, 0},
+    -- {0, 0, 0}, | {0, 1, 1}, | {0, 0, 0},
+    -- {0, 0, 0}, | {1, 1, 0}, | {0, 0, 0},
+    
+    for column = 1, #piece.shape[1][1] do
+        -- Rotate this column across all depths and rows
+        for depth = 1, #piece.shape do
+            for row = 1, #piece.shape[depth] do
+                if dir == 1 then -- Forward tilt (clockwise in depth-row plane)
+                    tilted_shape[row][#piece.shape - depth + 1][column] = piece.shape[depth][row][column]
+                else -- Backward tilt (counter-clockwise in depth-row plane)
+                    tilted_shape[#piece.shape - row + 1][depth][column] = piece.shape[depth][row][column]
                 end
             end
         end
     end
-end
-
-function tilt_piece(board, piece, dir)
-
+    
+    -- Store the original shape in case we need to revert
+    local original_shape = piece.shape
+    piece.shape = tilted_shape
+    
+    -- Store original position in case tilt is invalid
+    local original_z = piece.position.z
+    local original_y = piece.position.y
+    
+    -- Check if the tilt is valid in current position
+    if not is_valid_position(board, piece) then
+        local shift_success = false
+        
+        -- Try different z-axis kicks first (depth)
+        local z_kicks = {-1, 1, -2, 2}
+        for _, z_kick in ipairs(z_kicks) do
+            piece.position.z = original_z + z_kick
+            if is_valid_position(board, piece) then
+                shift_success = true
+                break
+            end
+        end
+        
+        -- If z-kicks didn't work, try y-axis kicks (height)
+        if not shift_success then
+            piece.position.z = original_z  -- Reset z position
+            
+            local y_kicks = {-1, 1, -2, 2}
+            for _, y_kick in ipairs(y_kicks) do
+                piece.position.y = original_y + y_kick
+                if is_valid_position(board, piece) then
+                    shift_success = true
+                    break
+                end
+            end
+        end
+        
+        -- If no valid position was found, revert tilt
+        if not shift_success then
+            piece.shape = original_shape
+            piece.position.z = original_z
+            piece.position.y = original_y
+        end
+    end
+    
+    -- Clear and redraw board with tilted piece
+    clear_piece(board, piece)
+    set_piece(board, piece)
 end
 
 function place_piece(board, piece)
@@ -501,9 +674,17 @@ function love.keypressed(key)
     elseif key == "lshift" then
         shift_piece3D(board, current_piece, -1)
     elseif key == "q" then
-        rotate_piece2D(board, current_piece, -1)
+        rotate_piece(board, current_piece, -1)
     elseif key == "e" then
-        rotate_piece2D(board, current_piece, 1)
+        rotate_piece(board, current_piece, 1)
+    elseif key == "z" then
+        twist_piece(board, current_piece, -1)
+    elseif key == "c" then
+        twist_piece(board, current_piece, 1)
+    elseif key == "r" then
+        tilt_piece(board, current_piece, 1)
+    elseif key == "f" then
+        tilt_piece(board, current_piece, -1)
     end
 end
 
