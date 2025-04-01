@@ -24,6 +24,10 @@ WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
 HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2)
 love.window.setMode(WIDTH, HEIGHT)
 
+ACTIVE_PIECE_VALUE = 1
+GHOST_PIECE_VALUE = 2
+PLACED_PIECE_VALUE = 3
+
 function love.load()
     tick = 0
 
@@ -210,17 +214,23 @@ function love.draw()
 
     -- Draw blocks
     for depth = 1, #board do
-        local y_offset = PADDING
         local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+        local y_offset = PADDING
         
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
-                if board[depth][row][column] == 1 then
+                local x = x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID)
+                local y = y_offset + ((row - ROW_OFFSET) * SCALED_GRID)
+
+                if board[depth][row][column] == ACTIVE_PIECE_VALUE then
                     love.graphics.setColor(1, 1, 1)
-                    love.graphics.rectangle("fill", x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID), y_offset + ((row - ROW_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
-                elseif board[depth][row][column] == 2 then
+                    love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
+                elseif board[depth][row][column] == GHOST_PIECE_VALUE then
+                    love.graphics.setColor(1, 1, 1, 0.3)
+                    love.graphics.rectangle("line", x, y, SCALED_GRID, SCALED_GRID)
+                elseif board[depth][row][column] == PLACED_PIECE_VALUE then
                     love.graphics.setColor(0.25, 0.25, 0.25)
-                    love.graphics.rectangle("fill", x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID), y_offset + ((row - ROW_OFFSET) * SCALED_GRID), SCALED_GRID, SCALED_GRID)
+                    love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
                 end
             end
         end
@@ -231,49 +241,105 @@ function set_piece(board, piece)
     for depth = 1, #piece.shape do
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == 0 and piece.shape[depth][row][column] == 1 then
-                    board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = 1
+                local current_position = board[piece.position.z + depth][piece.position.y + row][piece.position.x + column]
+                if current_position == 0 and piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE then
+                    board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = ACTIVE_PIECE_VALUE
                 end
             end
         end
     end
+
+    -- local ghost = get_ghost(board, piece)
+    -- if ghost.position.y > piece.position.y then
+    --     for depth = 1, #ghost.shape do
+    --         for row = 1, #ghost.shape[depth] do
+    --             for column = 1, #ghost.shape[depth][row] do
+    --                 local current_position = board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column]
+    --                 if current_position == 0 and ghost.shape[depth][row][column] == GHOST_PIECE_VALUE then
+    --                     board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column] = GHOST_PIECE_VALUE
+    --                 end
+    --             end
+    --         end
+    --     end
+    -- end
 end
 
 function clear_piece(board, piece)
     for depth = 1, #piece.shape do 
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == 1 then
-                    board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] = 0
+                -- local current_position = board[piece.position.z + depth][piece.position.y + row][piece.position.x + column]
+                -- if current_position == ACTIVE_PIECE_VALUE or current_position == GHOST_PIECE_VALUE then
+                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == ACTIVE_PIECE_VALUE then
+                    current_position = 0
                 end
             end
         end
     end
 end
 
+function get_ghost(board, piece)
+    -- Create a copy of the current piece to use as the ghost
+    local ghost = {
+        shape = {},
+        position = {
+            x = piece.position.x,
+            y = piece.position.y,
+            z = piece.position.z
+        }
+    }
+    
+    -- Copy the shape
+    for depth = 1, #piece.shape do
+        ghost.shape[depth] = {}
+        for row = 1, #piece.shape[depth] do
+            ghost.shape[depth][row] = {}
+            for column = 1, #piece.shape[depth][row] do
+                if piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE then
+                    ghost.shape[depth][row][column] = GHOST_PIECE_VALUE
+                else
+                    ghost.shape[depth][row][column] = piece.shape[depth][row][column]
+                end
+            end
+        end
+    end
+    
+    -- Drop the ghost piece as far down as it can go
+    while true do
+        ghost.position.y = ghost.position.y + 1
+        
+        if not is_valid_position(board, ghost) then
+            ghost.position.y = ghost.position.y - 1
+            break
+        end
+    end
+    
+    return ghost
+end
+
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    current_piece = new_I_PIECE()
+    -- current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    -- piece = math.random(7)
+    piece = math.random(7)
 
-    -- if piece == 1 then
-    --     current_piece = new_T_PIECE()
-    -- elseif piece == 2 then
-    --     current_piece = new_J_PIECE()
-    -- elseif piece == 3 then
-    --     current_piece = new_Z_PIECE()
-    -- elseif piece == 4 then
-    --     current_piece = new_O_PIECE()
-    -- elseif  piece == 5 then
-    --     current_piece = new_S_PIECE()
-    -- elseif piece == 6 then
-    --     current_piece = new_L_PIECE()
-    -- elseif piece == 7 then
-    --     current_piece = new_I_PIECE()
-    -- end
+    if piece == 1 then
+        current_piece = new_T_PIECE()
+    elseif piece == 2 then
+        current_piece = new_J_PIECE()
+    elseif piece == 3 then
+        current_piece = new_Z_PIECE()
+    elseif piece == 4 then
+        current_piece = new_O_PIECE()
+    elseif  piece == 5 then
+        current_piece = new_S_PIECE()
+    elseif piece == 6 then
+        current_piece = new_L_PIECE()
+    elseif piece == 7 then
+        current_piece = new_I_PIECE()
+    end
 
     set_piece(board, current_piece)
 end
@@ -282,7 +348,7 @@ function is_valid_position(board, piece)
     for depth = 1, #piece.shape do
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if piece.shape[depth][row][column] == 1 then
+                if piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE or piece.shape[depth][row][column] == GHOST_PIECE_VALUE then
                     local board_x = piece.position.x + column
                     local board_y = piece.position.y + row
                     local board_z = piece.position.z + depth
@@ -305,7 +371,7 @@ function is_valid_position(board, piece)
                     end
                     
                     -- Check for collision with placed pieces
-                    if board[board_z][board_y][board_x] == 2 then
+                    if board[board_z][board_y][board_x] == PLACED_PIECE_VALUE then
                         return false
                     end
                 end
@@ -600,8 +666,8 @@ function place_piece(board, piece)
                 local board_y = piece.position.y + row
                 local board_z = piece.position.z + depth
 
-                if board[board_z][board_y][board_x] == 0 and piece.shape[depth][row][column] == 1 then
-                    board[board_z][board_y][board_x] = 2
+                if board[board_z][board_y][board_x] == 0 and piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE then
+                    board[board_z][board_y][board_x] = PLACED_PIECE_VALUE
                 end
             end
         end
