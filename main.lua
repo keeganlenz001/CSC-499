@@ -254,24 +254,26 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
+    current_piece = new_I_PIECE()
+    -- current_piece = new_Z_PIECE()
 
-    piece = math.random(7)
+    -- piece = math.random(7)
 
-    if piece == 1 then
-        current_piece = new_T_PIECE()
-    elseif piece == 2 then
-        current_piece = new_J_PIECE()
-    elseif piece == 3 then
-        current_piece = new_Z_PIECE()
-    elseif piece == 4 then
-        current_piece = new_O_PIECE()
-    elseif  piece == 5 then
-        current_piece = new_S_PIECE()
-    elseif piece == 6 then
-        current_piece = new_L_PIECE()
-    elseif piece == 7 then
-        current_piece = new_I_PIECE()
-    end
+    -- if piece == 1 then
+    --     current_piece = new_T_PIECE()
+    -- elseif piece == 2 then
+    --     current_piece = new_J_PIECE()
+    -- elseif piece == 3 then
+    --     current_piece = new_Z_PIECE()
+    -- elseif piece == 4 then
+    --     current_piece = new_O_PIECE()
+    -- elseif  piece == 5 then
+    --     current_piece = new_S_PIECE()
+    -- elseif piece == 6 then
+    --     current_piece = new_L_PIECE()
+    -- elseif piece == 7 then
+    --     current_piece = new_I_PIECE()
+    -- end
 
     set_piece(board, current_piece)
 end
@@ -616,7 +618,7 @@ function line_clear(board)
         local row_full_across_all_depths = true
         
         -- Check if this row is full across all depths
-        for depth = 1, DEPTH do
+        for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
             local depth_row_full = true
             for column = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
                 if board[depth][row][column] ~= 2 then
@@ -637,7 +639,7 @@ function line_clear(board)
             line_clear_count = line_clear_count + 1
             
             -- Clear this row in all depths and move rows down
-            for depth = 1, DEPTH do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
                 -- Move all rows above this line down by one row
                 for move_row = row, 2, -1 do
                     for column = 1, COLUMNS + COLUMN_BUFFER do
