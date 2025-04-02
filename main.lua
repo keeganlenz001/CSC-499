@@ -227,7 +227,7 @@ function love.draw()
                     love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
                 elseif board[depth][row][column] == GHOST_PIECE_VALUE then
                     love.graphics.setColor(1, 1, 1, 0.3)
-                    love.graphics.rectangle("line", x, y, SCALED_GRID, SCALED_GRID)
+                    love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
                 elseif board[depth][row][column] == PLACED_PIECE_VALUE then
                     love.graphics.setColor(0.25, 0.25, 0.25)
                     love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
@@ -249,29 +249,27 @@ function set_piece(board, piece)
         end
     end
 
-    -- local ghost = get_ghost(board, piece)
-    -- if ghost.position.y > piece.position.y then
-    --     for depth = 1, #ghost.shape do
-    --         for row = 1, #ghost.shape[depth] do
-    --             for column = 1, #ghost.shape[depth][row] do
-    --                 local current_position = board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column]
-    --                 if current_position == 0 and ghost.shape[depth][row][column] == GHOST_PIECE_VALUE then
-    --                     board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column] = GHOST_PIECE_VALUE
-    --                 end
-    --             end
-    --         end
-    --     end
-    -- end
+    local ghost = get_ghost(board, piece)
+    if ghost.position.y > piece.position.y then
+        for depth = 1, #ghost.shape do
+            for row = 1, #ghost.shape[depth] do
+                for column = 1, #ghost.shape[depth][row] do
+                    local current_position = board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column]
+                    if current_position == 0 and ghost.shape[depth][row][column] == GHOST_PIECE_VALUE then
+                        board[ghost.position.z + depth][ghost.position.y + row][ghost.position.x + column] = GHOST_PIECE_VALUE
+                    end
+                end
+            end
+        end
+    end
 end
 
 function clear_piece(board, piece)
-    for depth = 1, #piece.shape do 
-        for row = 1, #piece.shape[depth] do
-            for column = 1, #piece.shape[depth][row] do
-                -- local current_position = board[piece.position.z + depth][piece.position.y + row][piece.position.x + column]
-                -- if current_position == ACTIVE_PIECE_VALUE or current_position == GHOST_PIECE_VALUE then
-                if board[piece.position.z + depth][piece.position.y + row][piece.position.x + column] == ACTIVE_PIECE_VALUE then
-                    current_position = 0
+    for depth = 1, #board do
+        for row = 1, #board[depth] do
+            for column = 1, #board[depth][row] do
+                if board[depth][row][column] == ACTIVE_PIECE_VALUE or board[depth][row][column] == GHOST_PIECE_VALUE then
+                    board[depth][row][column] = 0
                 end
             end
         end
@@ -298,7 +296,7 @@ function get_ghost(board, piece)
                 if piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE then
                     ghost.shape[depth][row][column] = GHOST_PIECE_VALUE
                 else
-                    ghost.shape[depth][row][column] = piece.shape[depth][row][column]
+                    ghost.shape[depth][row][column] = 0
                 end
             end
         end
@@ -348,7 +346,8 @@ function is_valid_position(board, piece)
     for depth = 1, #piece.shape do
         for row = 1, #piece.shape[depth] do
             for column = 1, #piece.shape[depth][row] do
-                if piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE or piece.shape[depth][row][column] == GHOST_PIECE_VALUE then
+                if piece.shape[depth][row][column] == ACTIVE_PIECE_VALUE or 
+                piece.shape[depth][row][column] == GHOST_PIECE_VALUE then
                     local board_x = piece.position.x + column
                     local board_y = piece.position.y + row
                     local board_z = piece.position.z + depth
@@ -687,7 +686,7 @@ function line_clear(board)
         for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
             local depth_row_full = true
             for column = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
-                if board[depth][row][column] ~= 2 then
+                if board[depth][row][column] ~= PLACED_PIECE_VALUE then
                     depth_row_full = false
                     break
                 end
