@@ -20,8 +20,11 @@ SCALE = 3
 SCALED_GRID = GRID * SCALE
 PADDING = SCALED_GRID
 
+INFO_PANEL = 80
+FONT_SIZE = 24
+
 WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
-HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2)
+HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2) + (INFO_PANEL + PADDING)
 love.window.setMode(WIDTH, HEIGHT)
 
 ACTIVE_PIECE_VALUE = 1
@@ -30,6 +33,10 @@ PLACED_PIECE_VALUE = 3
 
 function love.load()
     tick = 0
+    level = 0
+    score = 0
+
+    nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
 
     board = {}
     for i = 1, DEPTH + DEPTH_BUFFER do
@@ -194,10 +201,19 @@ function love.load()
 end
 
 function love.draw()
+    -- Score
+    local formattedScore = string.format("%06d", score)
+    love.graphics.setColor(1, 1, 1, 1) -- White text
+    love.graphics.setFont(nes_font)
+    love.graphics.print("SCORE", PADDING, PADDING)
+    love.graphics.print(formattedScore, PADDING, PADDING + FONT_SIZE) 
+
+
+    -- Draw grids
     for depth = 1, DEPTH do
         love.graphics.setColor(1, 1, 1)
         local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
-        local y_offset = PADDING
+        local y_offset = PADDING + INFO_PANEL + PADDING
 
         -- Draw horizontal lines
         for row = 0, ROWS do
@@ -215,7 +231,7 @@ function love.draw()
     -- Draw blocks
     for depth = 1, #board do
         local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
-        local y_offset = PADDING
+        local y_offset = PADDING + INFO_PANEL + PADDING
         
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
@@ -318,26 +334,26 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    -- current_piece = new_I_PIECE()
+    current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    piece = math.random(7)
+    -- piece = math.random(7)
 
-    if piece == 1 then
-        current_piece = new_T_PIECE()
-    elseif piece == 2 then
-        current_piece = new_J_PIECE()
-    elseif piece == 3 then
-        current_piece = new_Z_PIECE()
-    elseif piece == 4 then
-        current_piece = new_O_PIECE()
-    elseif  piece == 5 then
-        current_piece = new_S_PIECE()
-    elseif piece == 6 then
-        current_piece = new_L_PIECE()
-    elseif piece == 7 then
-        current_piece = new_I_PIECE()
-    end
+    -- if piece == 1 then
+    --     current_piece = new_T_PIECE()
+    -- elseif piece == 2 then
+    --     current_piece = new_J_PIECE()
+    -- elseif piece == 3 then
+    --     current_piece = new_Z_PIECE()
+    -- elseif piece == 4 then
+    --     current_piece = new_O_PIECE()
+    -- elseif  piece == 5 then
+    --     current_piece = new_S_PIECE()
+    -- elseif piece == 6 then
+    --     current_piece = new_L_PIECE()
+    -- elseif piece == 7 then
+    --     current_piece = new_I_PIECE()
+    -- end
 
     set_piece(board, current_piece)
 end
@@ -721,6 +737,17 @@ function line_clear(board)
             -- Don't increment row since we need to check the same row again
             row = row - 1
         end
+    end
+
+    -- NES Tetris standard for score calculation
+    if line_clear_count == 1 then
+        score = score + (40 * (level + 1))
+    elseif line_clear_count == 2 then
+        score = score + (100 * (level + 1))
+    elseif line_clear_count == 3 then
+        score = score + (300 * (level + 1))
+    elseif line_clear_count == 4 then
+        score = score + (1200 * (level + 1)) -- Boom! Tetris!
     end
 end
 
