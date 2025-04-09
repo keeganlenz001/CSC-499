@@ -35,7 +35,11 @@ function love.load()
     tick = 0
     level = 0
     score = 0
-    high_score = tonumber(love.filesystem.read("high_score.txt"), 10)
+    high_score_file = "high_score.txt"
+    if not love.filesystem.getInfo(high_score_file) then
+        love.filesystem.write(high_score_file, "0")
+    end
+    high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
 
@@ -206,12 +210,12 @@ function love.draw()
     love.graphics.setFont(nes_font)
 
     -- High Score
-    local formatted_top = string.format("%06d", high_score)
+    formatted_top = string.format("%06d", high_score)
     love.graphics.print("TOP", PADDING, PADDING)
     love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE) 
 
     -- Score
-    local formatted_score = string.format("%06d", score)
+    formatted_score = string.format("%06d", score)
     love.graphics.print("SCORE", PADDING * 8, PADDING)
     love.graphics.print(formatted_score, PADDING * 8, PADDING + FONT_SIZE) 
 
@@ -760,7 +764,7 @@ function line_clear(board)
 
     if score > high_score then
         high_score = score
-        love.filesystem.write("high_score.txt", tostring(high_score))
+        love.filesystem.write(high_score_file, tostring(high_score))
     end
 end
 
