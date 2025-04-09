@@ -5,7 +5,7 @@ GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 4
+DEPTH = 1
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -20,7 +20,7 @@ SCALE = 3
 SCALED_GRID = GRID * SCALE
 PADDING = SCALED_GRID
 
-INFO_PANEL = 80
+INFO_PANEL = 40
 FONT_SIZE = 24
 
 WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
@@ -35,6 +35,7 @@ function love.load()
     tick = 0
     level = 0
     score = 0
+    high_score = tonumber(love.filesystem.read("high_score.txt"), 10)
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
 
@@ -201,12 +202,19 @@ function love.load()
 end
 
 function love.draw()
-    -- Score
-    local formattedScore = string.format("%06d", score)
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
-    love.graphics.print("SCORE", PADDING, PADDING)
-    love.graphics.print(formattedScore, PADDING, PADDING + FONT_SIZE) 
+
+    -- High Score
+    local formatted_top = string.format("%06d", high_score)
+    love.graphics.print("TOP", PADDING, PADDING)
+    love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE) 
+
+    -- Score
+    local formatted_score = string.format("%06d", score)
+    love.graphics.print("SCORE", PADDING * 8, PADDING)
+    love.graphics.print(formatted_score, PADDING * 8, PADDING + FONT_SIZE) 
+
 
 
     -- Draw grids
@@ -748,6 +756,11 @@ function line_clear(board)
         score = score + (300 * (level + 1))
     elseif line_clear_count == 4 then
         score = score + (1200 * (level + 1)) -- Boom! Tetris!
+    end
+
+    if score > high_score then
+        high_score = score
+        love.filesystem.write("high_score.txt", tostring(high_score))
     end
 end
 
