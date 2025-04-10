@@ -5,7 +5,7 @@ GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 1
+DEPTH = 4
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -20,7 +20,9 @@ SCALE = 3
 SCALED_GRID = GRID * SCALE
 PADDING = SCALED_GRID
 
-INFO_PANEL = 40
+-- Alternate UI layout
+-- INFO_PANEL = 40
+INFO_PANEL = 80
 FONT_SIZE = 24
 
 WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
@@ -36,9 +38,11 @@ function love.load()
     level = 0
     score = 0
     high_score_file = "high_score.txt"
+
     if not love.filesystem.getInfo(high_score_file) then
         love.filesystem.write(high_score_file, "0")
     end
+
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
@@ -201,8 +205,8 @@ function love.load()
         }
     end
 
-    current_piece = new_I_PIECE()
-    set_piece(board, current_piece)
+    next_piece = piece_by_id(math.random(7))
+    new_piece()
 end
 
 function love.draw()
@@ -212,14 +216,35 @@ function love.draw()
     -- High Score
     formatted_top = string.format("%06d", high_score)
     love.graphics.print("TOP", PADDING, PADDING)
-    love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE) 
+    love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE)
 
     -- Score
     formatted_score = string.format("%06d", score)
-    love.graphics.print("SCORE", PADDING * 8, PADDING)
-    love.graphics.print(formatted_score, PADDING * 8, PADDING + FONT_SIZE) 
+    -- love.graphics.print("SCORE", PADDING * 8, PADDING) -- Alternate UI Layout
+    -- love.graphics.print(formatted_score, PADDING * 8, PADDING + FONT_SIZE) -- Alternate UI Layout
+    love.graphics.print("SCORE", PADDING, PADDING + (FONT_SIZE * 2))
+    love.graphics.print(formatted_score, PADDING, PADDING + (FONT_SIZE * 3))
 
+    -- Next Piece
+    -- love.graphics.print("NEXT", PADDING * 16, PADDING) -- Alternate UI Layout
+    love.graphics.print("NEXT", PADDING * 12, PADDING)
+    for depth = 1, #next_piece.shape do
+            -- local x_offset = PADDING * 24 -- Alternate UI Layout
+            -- local y_offset = PADDING -- Alternate UI Layout
+            local x_offset = PADDING * 13
+            local y_offset = PADDING + FONT_SIZE + (PADDING / 2)
+        for row = 1, #next_piece.shape[depth] do
+            for column = 1, #next_piece.shape[depth][row] do
+                local x = x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID)
+                local y = y_offset + ((row - ROW_OFFSET) * SCALED_GRID)
 
+                if next_piece.shape[depth][row][column] == 1 then
+                    love.graphics.setColor(1, 1, 1)
+                    love.graphics.rectangle("fill", x, y, SCALED_GRID, SCALED_GRID)
+                end
+            end
+        end
+    end
 
     -- Draw grids
     for depth = 1, DEPTH do
@@ -343,29 +368,34 @@ function get_ghost(board, piece)
     return ghost
 end
 
+function piece_by_id(id)
+    if id == 1 then
+        piece = new_T_PIECE()
+    elseif id == 2 then
+        piece = new_J_PIECE()
+    elseif id == 3 then
+        piece = new_Z_PIECE()
+    elseif id == 4 then
+        piece = new_O_PIECE()
+    elseif id == 5 then
+        piece = new_S_PIECE()
+    elseif id == 6 then
+        piece = new_L_PIECE()
+    elseif id == 7 then
+        piece = new_I_PIECE()
+    end
+
+    return piece
+end
+
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    current_piece = new_I_PIECE()
+    -- current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    -- piece = math.random(7)
-
-    -- if piece == 1 then
-    --     current_piece = new_T_PIECE()
-    -- elseif piece == 2 then
-    --     current_piece = new_J_PIECE()
-    -- elseif piece == 3 then
-    --     current_piece = new_Z_PIECE()
-    -- elseif piece == 4 then
-    --     current_piece = new_O_PIECE()
-    -- elseif  piece == 5 then
-    --     current_piece = new_S_PIECE()
-    -- elseif piece == 6 then
-    --     current_piece = new_L_PIECE()
-    -- elseif piece == 7 then
-    --     current_piece = new_I_PIECE()
-    -- end
+    current_piece = next_piece
+    next_piece = piece_by_id(math.random(7))
 
     set_piece(board, current_piece)
 end
