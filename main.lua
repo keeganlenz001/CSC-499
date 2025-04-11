@@ -1,6 +1,3 @@
-BOARD_WIDTH = 80
-BOARD_HEIGHT = 160
--- PADDING = 16
 GRID = 8
 
 ROWS = 20
@@ -15,18 +12,19 @@ ROW_OFFSET = 2
 COLUMN_OFFSET = 2
 DEPTH_OFFSET = 2 -- Every piece is on the second depth layer
 
-SCALE = 3
+PADDING = GRID
 
-SCALED_GRID = GRID * SCALE
-PADDING = SCALED_GRID
+BOARD_WIDTH = COLUMNS * GRID
+BOARD_HEIGHT = ROWS * GRID
 
-INFO_PANEL = 40
+INFO_PANEL = 14
+FONT_SIZE = 8
 
-FONT_SIZE = 24
-
-WIDTH = (BOARD_WIDTH * DEPTH * SCALE) + (PADDING * (DEPTH + 1))
-HEIGHT = (BOARD_HEIGHT * SCALE) + (PADDING * 2) + (INFO_PANEL + PADDING)
-love.window.setMode(WIDTH, HEIGHT)
+CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * DEPTH)
+CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING)
+ASPECT_RATIO = 16/9
+    
+love.window.setMode(CANVAS_WIDTH * 3, CANVAS_HEIGHT * 3, {resizable=true})
 
 ACTIVE_PIECE_VALUES = {1, 2, 3}
 PLACED_PIECE_VALUES = {4, 5, 6}
@@ -43,51 +41,59 @@ PIECE_COLORS = {
     {66 * RGB, 66 * RGB, 255 * RGB} -- Dark
 }
 
-PIXEL = SCALE
+PIXEL = 1
 PIECE_SPRITES = {
     { -- Hollow
-        {x = 0, y = 0, w = SCALED_GRID, h = SCALED_GRID}, -- Fill black
-        {x = 0, y = 0, w = SCALED_GRID - PIXEL, h = SCALED_GRID - PIXEL}, -- Fill dark
-        {x = PIXEL, y = PIXEL, w = SCALED_GRID - (3 * PIXEL), h = SCALED_GRID - (3 * PIXEL)}, -- Fill white
+        {x = 0, y = 0, w = GRID, h = GRID}, -- Fill black
+        {x = 0, y = 0, w = GRID - PIXEL, h = GRID - PIXEL}, -- Fill dark
+        {x = PIXEL, y = PIXEL, w = GRID - (3 * PIXEL), h = GRID - (3 * PIXEL)}, -- Fill white
         {x = 0, y = 0, w = PIXEL, h = PIXEL} -- Fill white
     },
 
     { -- Light
-        {x = 0, y = 0, w = SCALED_GRID, h = SCALED_GRID}, -- Fill black
-        {x = 0, y = 0, w = SCALED_GRID - PIXEL, h = SCALED_GRID - PIXEL}, -- Fill light
+        {x = 0, y = 0, w = GRID, h = GRID}, -- Fill black
+        {x = 0, y = 0, w = GRID - PIXEL, h = GRID - PIXEL}, -- Fill light
         {x = PIXEL, y = PIXEL, w = 2 * PIXEL, h = PIXEL}, -- Fill white
         {x = PIXEL, y = 2 * PIXEL, w = PIXEL, h = PIXEL}, -- Fill white
         {x = 0, y = 0, w = PIXEL, h = PIXEL} -- Fill white
     },
 
     { -- Dark
-        {x = 0, y = 0, w = SCALED_GRID, h = SCALED_GRID}, -- Fill black
-        {x = 0, y = 0, w = SCALED_GRID - PIXEL, h = SCALED_GRID - PIXEL}, -- Fill dark
+        {x = 0, y = 0, w = GRID, h = GRID}, -- Fill black
+        {x = 0, y = 0, w = GRID - PIXEL, h = GRID - PIXEL}, -- Fill dark
         {x = PIXEL, y = PIXEL, w = 2 * PIXEL, h = PIXEL}, -- Fill white
         {x = PIXEL, y = 2 * PIXEL, w = PIXEL, h = PIXEL}, -- Fill white
         {x = 0, y = 0, w = PIXEL, h = PIXEL} -- Fill white
     },
 
     { -- Ghost
-        {x = 0, y = 0, w = SCALED_GRID, h = SCALED_GRID}, -- Fill black
-        {x = 0, y = 0, w = SCALED_GRID - PIXEL, h = SCALED_GRID - PIXEL}, -- Fill white
-        {x = PIXEL, y = PIXEL, w = SCALED_GRID - (3 * PIXEL), h = SCALED_GRID - (3 * PIXEL)}, -- Fill black
+        {x = 0, y = 0, w = GRID, h = GRID}, -- Fill black
+        {x = 0, y = 0, w = GRID - PIXEL, h = GRID - PIXEL}, -- Fill white
+        {x = PIXEL, y = PIXEL, w = GRID - (3 * PIXEL), h = GRID - (3 * PIXEL)}, -- Fill black
     }
 }
 
 function love.load()
+    canvas = love.graphics.newCanvas(CANVAS_WIDTH, CANVAS_HEIGHT)
+    canvas:setFilter("nearest", "nearest")
+
     high_score_file = "high_score.txt"
     if not love.filesystem.getInfo(high_score_file) then
         love.filesystem.write(high_score_file, "0")
     end
 
-    tick = 0
+    fall_tick = 0
+    game_over_tick = 0
+
     level = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
     game_over = false
+    game_over_time = nil
+    game_over_row = 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
+    nes_font:setFilter("nearest", "nearest")
 
     board = {}
     for i = 1, DEPTH + DEPTH_BUFFER do
@@ -251,6 +257,29 @@ function love.load()
     new_piece()
 end
 
+function new_game()
+    fall_tick = 0
+    game_over_tick = 0
+
+    level = 0
+    score = 0
+    high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
+    game_over = false
+    game_over_time = nil
+    game_over_row = 0
+
+    for depth = 1, #board do
+        for row = 1, #board[depth] do
+            for column = 1, #board[depth] do
+                board[depth][row][column] = 0
+            end
+        end
+    end
+    
+    next_piece = piece_by_id(math.random(7))
+    new_piece()
+end
+
 function contains(table, value)
     for _, v in ipairs(table) do
         if v == value then
@@ -286,35 +315,57 @@ function draw_piece(x, y, piece_type)
         love.graphics.setColor(0, 0, 0)
         love.graphics.rectangle("fill", x + sprite[3].x, y + sprite[3].y, sprite[3].w, sprite[3].h)
     end
-        
+end
+
+function get_scale_and_offset()
+    local window_width, window_height = love.graphics.getDimensions()
+    local window_aspect = window_width / window_height
+    local scale_factor, offset_x, offset_y
+    
+    if window_aspect > ASPECT_RATIO then
+        -- Window is wider than target ratio (letterboxing on sides)
+        scale_factor = window_height / CANVAS_HEIGHT
+        offset_x = (window_width - (CANVAS_WIDTH * scale_factor)) / 2
+        offset_y = 0
+    else
+        -- Window is taller than target ratio (letterboxing on top/bottom)
+        scale_factor = window_width / CANVAS_WIDTH
+        offset_x = 0
+        offset_y = (window_height - (CANVAS_HEIGHT * scale_factor)) / 2
+    end
+    
+    return scale_factor, offset_x, offset_y
 end
 
 function love.draw()
-    love.graphics.setLineWidth(PIXEL)
-    
+    love.graphics.setCanvas(canvas)
+    love.graphics.clear()
+
+    love.graphics.setLineStyle("rough")
+
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
 
     -- High Score
     formatted_top = string.format("%06d", high_score)
-    love.graphics.print("TOP", PADDING, PADDING)
-    love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE)
+    love.graphics.print("TOP", PADDING / 2, PADDING)
+    love.graphics.print(formatted_top, PADDING / 2, PADDING + FONT_SIZE)
 
     -- Score
     formatted_score = string.format("%06d", score)
-    love.graphics.print("SCORE", PADDING * 12, PADDING)
-    love.graphics.print(formatted_score, PADDING * 12, PADDING + FONT_SIZE)
+    love.graphics.print("SCORE", (PADDING * 12) - (PADDING / 2), PADDING)
+    love.graphics.print(formatted_score, (PADDING * 12) - (PADDING / 2), PADDING + FONT_SIZE)
 
     -- Next Piece
-    love.graphics.print("NEXT", PADDING * 23, PADDING)
+    love.graphics.print("NEXT", (PADDING * 23) - (PADDING / 2), PADDING)
     for depth = 1, #next_piece.shape do
-        local x_offset = PADDING * 29
+        local x_offset = (PADDING * 29) - (PADDING / 2)
         local y_offset = PADDING
 
         for row = 1, #next_piece.shape[depth] do
             for column = 1, #next_piece.shape[depth][row] do
-                local x = x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID)
-                local y = y_offset + ((row - ROW_OFFSET) * SCALED_GRID)
+                local x = x_offset + ((column - COLUMN_OFFSET) * GRID)
+                local y = y_offset + ((row - ROW_OFFSET) * GRID)
 
                 if contains(ACTIVE_PIECE_VALUES, next_piece.shape[depth][row][column]) then
                     if next_piece.shape[depth][row][column] == ACTIVE_PIECE_VALUES[1] then
@@ -331,76 +382,99 @@ function love.draw()
 
     -- Level
     formatted_level = string.format("%02d", level)
-    love.graphics.print("LEVEL", PADDING * 34, PADDING)
-    love.graphics.print(formatted_level, PADDING * 34 + (FONT_SIZE * 2), PADDING + FONT_SIZE)
+    love.graphics.print("LEVEL", (PADDING * 34) - PADDING / 2, PADDING)
+    love.graphics.print(formatted_level, (PADDING * 34) - (PADDING / 2) + (FONT_SIZE * 2), PADDING + FONT_SIZE)
 
     -- Draw boards
     for depth = 1, DEPTH do
-        local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+        local x_offset = (depth - 1) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
         local y_offset = PADDING + INFO_PANEL + PADDING
-        local x = x_offset - PIXEL
-        local y = y_offset - PIXEL
+        local x = x_offset
+        local y = y_offset
 
         love.graphics.setColor(NES_CYAN)
-        love.graphics.rectangle("fill", x - PIXEL, y - PIXEL, (COLUMNS * SCALED_GRID) + (PIXEL * 3), (ROWS * SCALED_GRID + (PIXEL * 3)))
+        love.graphics.rectangle("fill", x - PIXEL, y + PIXEL, (COLUMNS * GRID) + (PIXEL * 2), (ROWS * GRID + (PIXEL * 2)))
 
         love.graphics.setColor(0, 0, 0)
-        love.graphics.rectangle("fill", x, y, (COLUMNS * SCALED_GRID) + PIXEL, (ROWS * SCALED_GRID) + PIXEL)
+        love.graphics.rectangle("fill", x, y + (PIXEL * 2), COLUMNS * GRID, ROWS * GRID)
     end
 
     -- Draw blocks
-    if not game_over then
-        for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
-            local y_offset = PADDING + INFO_PANEL + PADDING
+    for depth = 1, #board do
+        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
+        local y_offset = PADDING + INFO_PANEL + PADDING
             
-            for row = 1, #board[depth] do
-                for column = 1, #board[depth][row] do
-                    local x = x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID)
-                    local y = y_offset + ((row - ROW_OFFSET) * SCALED_GRID)
+        for row = 1, #board[depth] do
+            for column = 1, #board[depth][row] do
+                local x = x_offset + ((column - COLUMN_OFFSET) * GRID)
+                local y = y_offset + ((row - ROW_OFFSET) * GRID) + (PIXEL * 2)
 
-                    if contains(ACTIVE_PIECE_VALUES, board[depth][row][column]) and row >= ROW_OFFSET then
-                        if board[depth][row][column] == ACTIVE_PIECE_VALUES[1] then
-                            draw_piece(x, y, 1, PIXEL)
-                        elseif board[depth][row][column] == ACTIVE_PIECE_VALUES[2] then
-                            draw_piece(x, y, 2, PIXEL)
-                        elseif board[depth][row][column] == ACTIVE_PIECE_VALUES[3] then
-                            draw_piece(x, y, 3, PIXEL)
-                        end
-                    elseif board[depth][row][column] == GHOST_PIECE_VALUE and row >= ROW_OFFSET then
-                        draw_piece(x, y, 4, PIXEL)
-                    elseif contains(PLACED_PIECE_VALUES, board[depth][row][column]) and row >= ROW_OFFSET then
-                        if board[depth][row][column] == PLACED_PIECE_VALUES[1] then
-                            draw_piece(x, y, 1, PIXEL)
-                        elseif board[depth][row][column] == PLACED_PIECE_VALUES[2] then
-                            draw_piece(x, y, 2, PIXEL)
-                        elseif board[depth][row][column] == PLACED_PIECE_VALUES[3] then
-                            draw_piece(x, y, 3, PIXEL)
-                        end
+                if contains(ACTIVE_PIECE_VALUES, board[depth][row][column]) and row >= ROW_OFFSET then
+                    if board[depth][row][column] == ACTIVE_PIECE_VALUES[1] then
+                        draw_piece(x, y, 1, PIXEL)
+                    elseif board[depth][row][column] == ACTIVE_PIECE_VALUES[2] then
+                        draw_piece(x, y, 2, PIXEL)
+                    elseif board[depth][row][column] == ACTIVE_PIECE_VALUES[3] then
+                        draw_piece(x, y, 3, PIXEL)
+                    end
+                elseif board[depth][row][column] == GHOST_PIECE_VALUE and row >= ROW_OFFSET then
+                    draw_piece(x, y, 4, PIXEL)
+                elseif contains(PLACED_PIECE_VALUES, board[depth][row][column]) and row >= ROW_OFFSET then
+                    if board[depth][row][column] == PLACED_PIECE_VALUES[1] then
+                        draw_piece(x, y, 1, PIXEL)
+                    elseif board[depth][row][column] == PLACED_PIECE_VALUES[2] then
+                        draw_piece(x, y, 2, PIXEL)
+                    elseif board[depth][row][column] == PLACED_PIECE_VALUES[3] then
+                        draw_piece(x, y, 3, PIXEL)
                     end
                 end
             end
         end
-    else
+    end
+    
+    if game_over then
         for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
             local y_offset = PADDING + INFO_PANEL + PADDING
             
-            for row = 1, #board[depth] - ROW_BUFFER do
-                local x = x_offset
-                local y = y_offset + ((row - 1) * SCALED_GRID)
+            for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
+                local x = x_offset + PIXEL
+                local y = y_offset + ((row - 1) * GRID) + (PIXEL * 2)
 
                 love.graphics.setColor(PIECE_COLORS[2])
-                love.graphics.rectangle("fill", x, y, COLUMNS * SCALED_GRID, PIXEL * 2)
+                love.graphics.rectangle("fill", x, y, (COLUMNS * GRID) - PIXEL, PIXEL * 2)
                 love.graphics.setColor(1, 1, 1)
-                love.graphics.rectangle("fill", x, y + (PIXEL * 2), COLUMNS * SCALED_GRID, PIXEL * 3)
+                love.graphics.rectangle("fill", x, y + (PIXEL * 2), (COLUMNS * GRID) - PIXEL, PIXEL * 3)
                 love.graphics.setColor(PIECE_COLORS[1])
-                love.graphics.rectangle("fill", x, y + (PIXEL * 5), COLUMNS * SCALED_GRID, PIXEL * 2)
+                love.graphics.rectangle("fill", x, y + (PIXEL * 5), (COLUMNS * GRID) - PIXEL, PIXEL * 2)
                 love.graphics.setColor(0, 0, 0)
-                love.graphics.rectangle("fill", x, y + (PIXEL * 7), COLUMNS * SCALED_GRID, PIXEL)
+                love.graphics.rectangle("fill", x, y + (PIXEL * 7), (COLUMNS * GRID) - PIXEL, PIXEL)
             end
         end
     end
+
+
+    -- love.graphics.setColor(1, 0, 0)
+    -- for i = 0, WIDTH / GRID do
+    --     love.graphics.line(i * GRID, 0, i * GRID, HEIGHT)
+    --     -- love.graphics.line(i * (GRID + 1), 0, i * (GRID + 1), HEIGHT)
+    --     -- love.graphics.line((i * GRID) - 0.5, 0, (i * GRID) - 0.5, HEIGHT)
+    -- end
+
+    -- for i = 0, HEIGHT / GRID  do
+    --     love.graphics.line(0, i * GRID, WIDTH, i * GRID)
+    --     -- love.graphics.line(0, (i * GRID) - 0.5, WIDTH, (i * GRID) - 0.5)
+    --     -- love.graphics.line(0, (i * (GRID + 1)) - 0.5, WIDTH, (i * (GRID + 1)) - 0.5)
+    -- end
+
+    -- Reset canvas target
+    love.graphics.setCanvas()
+
+    local scale, offset_x, offset_y = get_scale_and_offset()
+    
+    -- Draw canvas to screen with proper scaling
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
 end
 
 function set_piece(board, piece)
@@ -504,13 +578,20 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    -- current_piece = new_I_PIECE()
+    current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    current_piece = next_piece
-    next_piece = piece_by_id(math.random(7))
+    -- current_piece = next_piece
+    -- next_piece = piece_by_id(math.random(7))
 
     if not is_valid_position(board, current_piece) then
+        -- current_piece.position.y = current_piece.position.y - 1
+        -- if not is_valid_position(board, current_piece) then
+        --     current_piece.position.y = current_piece.position.y + 1
+        --     game_over = true
+        --     return
+        -- end
+
         game_over = true
         return
     end
@@ -905,15 +986,15 @@ function line_clear(board)
         end
     end
 
-    -- NES Tetris standard for score calculation
+    -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
-        score = score + (40 * (level + 1))
+        score = score + (40 * (level + 1) * DEPTH)
     elseif line_clear_count == 2 then
-        score = score + (100 * (level + 1))
+        score = score + (100 * (level + 1) * DEPTH)
     elseif line_clear_count == 3 then
-        score = score + (300 * (level + 1))
+        score = score + (300 * (level + 1) * DEPTH)
     elseif line_clear_count == 4 then
-        score = score + (1200 * (level + 1)) -- Boom! Tetris!
+        score = score + (1200 * (level + 1) * DEPTH) -- Boom! Tetris!
     end
 
     if score > high_score then
@@ -958,38 +1039,28 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
-    tick = tick + dt
+    fall_tick = fall_tick + dt
 
-    -- if tick > 0.25 then
-    --     tick = 0
+    -- if fall_tick > 0.25 then
+    --     fall_tick = 0
     --     lower_piece(board, current_piece)
     -- end
 
-    if love.keyboard.isDown("s", "down") and tick > 0.025 and not game_over then
-        tick = 0
+    if love.keyboard.isDown("s", "down") and fall_tick > 0.025 and not game_over then
+        fall_tick = 0
         lower_piece(board, current_piece)
     end
 
-    -- if game_over then
-    --     for depth = 1, #board do
-    --         local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
-    --         local y_offset = PADDING + INFO_PANEL + PADDING
-            
-    --         for row = 1, #board[depth] do
-    --             for column = 1, #board[depth][row] do
-    --                 local x = x_offset + ((column - COLUMN_OFFSET) * SCALED_GRID)
-    --                 local y = y_offset + ((row - ROW_OFFSET) * SCALED_GRID)
+    if game_over then
+        game_over_tick = game_over_tick + dt
+        
+        if game_over_tick > 0.1 then
+            game_over_tick = 0
+            game_over_row = game_over_row + 1  -- Move to next row
+        end
 
-    --                 love.graphics.setColor(PIECE_COLORS[2])
-    --                 love.graphics.rectangle("fill", x, y, COLUMNS * SCALED_GRID, PIXEL * 2)
-    --                 love.graphics.setColor(1, 1, 1)
-    --                 love.graphics.rectangle("fill", x, y, COLUMNS * SCALED_GRID, PIXEL * 3)
-    --                 love.graphics.setColor(PIECE_COLORS[1])
-    --                 love.graphics.rectangle("fill", x, y, COLUMNS * SCALED_GRID, PIXEL * 2)
-    --                 love.graphics.setColor(0, 0, 0)
-    --                 love.graphics.rectangle("fill", x, y, COLUMNS * SCALED_GRID, PIXEL)
-    --             end
-    --         end
-    --     end
-    -- end
+        if game_over_row > 30 then -- Arbitrary wait time
+            new_game()
+        end
+    end
 end
