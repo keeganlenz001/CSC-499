@@ -27,7 +27,7 @@ INFO_PANEL = INFO_PANEL * SCALE
 FONT_SIZE = 8
 FONT_SIZE = FONT_SIZE * SCALE
 
-WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * (DEPTH + 1))
+WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * DEPTH)
 HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING)
 love.window.setMode(WIDTH, HEIGHT)
 
@@ -300,18 +300,18 @@ function love.draw()
 
     -- High Score
     formatted_top = string.format("%06d", high_score)
-    love.graphics.print("TOP", PADDING, PADDING)
-    love.graphics.print(formatted_top, PADDING, PADDING + FONT_SIZE)
+    love.graphics.print("TOP", PADDING / 2, PADDING)
+    love.graphics.print(formatted_top, PADDING / 2, PADDING + FONT_SIZE)
 
     -- Score
     formatted_score = string.format("%06d", score)
-    love.graphics.print("SCORE", PADDING * 12, PADDING)
-    love.graphics.print(formatted_score, PADDING * 12, PADDING + FONT_SIZE)
+    love.graphics.print("SCORE", (PADDING * 12) - (PADDING / 2), PADDING)
+    love.graphics.print(formatted_score, (PADDING * 12) - (PADDING / 2), PADDING + FONT_SIZE)
 
     -- Next Piece
-    love.graphics.print("NEXT", PADDING * 23, PADDING)
+    love.graphics.print("NEXT", (PADDING * 23) - (PADDING / 2), PADDING)
     for depth = 1, #next_piece.shape do
-        local x_offset = PADDING * 29
+        local x_offset = (PADDING * 29) - (PADDING / 2)
         local y_offset = PADDING
 
         for row = 1, #next_piece.shape[depth] do
@@ -334,12 +334,12 @@ function love.draw()
 
     -- Level
     formatted_level = string.format("%02d", level)
-    love.graphics.print("LEVEL", PADDING * 34, PADDING)
-    love.graphics.print(formatted_level, PADDING * 34 + (FONT_SIZE * 2), PADDING + FONT_SIZE)
+    love.graphics.print("LEVEL", (PADDING * 34) - PADDING / 2, PADDING)
+    love.graphics.print(formatted_level, (PADDING * 34) - (PADDING / 2) + (FONT_SIZE * 2), PADDING + FONT_SIZE)
 
     -- Draw boards
     for depth = 1, DEPTH do
-        local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+        local x_offset = (depth - 1) * (COLUMNS * SCALED_GRID + PADDING) + (PADDING / 2)
         local y_offset = PADDING + INFO_PANEL + PADDING
         local x = x_offset
         local y = y_offset
@@ -354,7 +354,7 @@ function love.draw()
     -- Draw blocks
     if not game_over then
         for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + (PADDING / 2)
             local y_offset = PADDING + INFO_PANEL + PADDING
             
             for row = 1, #board[depth] do
@@ -521,11 +521,11 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    -- current_piece = new_I_PIECE()
+    current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    current_piece = next_piece
-    next_piece = piece_by_id(math.random(7))
+    -- current_piece = next_piece
+    -- next_piece = piece_by_id(math.random(7))
 
     if not is_valid_position(board, current_piece) then
         -- current_piece.position.y = current_piece.position.y - 1
@@ -929,15 +929,15 @@ function line_clear(board)
         end
     end
 
-    -- NES Tetris standard for score calculation
+    -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
-        score = score + (40 * (level + 1))
+        score = score + (40 * (level + 1) * DEPTH)
     elseif line_clear_count == 2 then
-        score = score + (100 * (level + 1))
+        score = score + (100 * (level + 1) * DEPTH)
     elseif line_clear_count == 3 then
-        score = score + (300 * (level + 1))
+        score = score + (300 * (level + 1) * DEPTH)
     elseif line_clear_count == 4 then
-        score = score + (1200 * (level + 1)) -- Boom! Tetris!
+        score = score + (1200 * (level + 1) * DEPTH) -- Boom! Tetris!
     end
 
     if score > high_score then
