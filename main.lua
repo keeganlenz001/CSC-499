@@ -83,6 +83,7 @@ function love.load()
     end
 
     fall_tick = 0
+    shift_tick = 0
     game_over_tick = 0
 
     level = 0
@@ -259,6 +260,7 @@ end
 
 function new_game()
     fall_tick = 0
+    shift_tick = 0
     game_over_tick = 0
 
     level = 0
@@ -1011,9 +1013,9 @@ function love.keypressed(key)
     end
 
     -- Debug
-    if love.keyboard.isDown("s", "down") then
-        lower_piece(board, current_piece)
-    end
+    -- if love.keyboard.isDown("s", "down") then
+    --     lower_piece(board, current_piece)
+    -- end
 
     if key == "a" or key == "left" then
         shift_piece2D(board, current_piece, -1)
@@ -1040,6 +1042,7 @@ end
 
 function love.update(dt)
     fall_tick = fall_tick + dt
+    shift_tick = shift_tick + dt
 
     -- if fall_tick > 0.25 then
     --     fall_tick = 0
@@ -1049,6 +1052,16 @@ function love.update(dt)
     if love.keyboard.isDown("s", "down") and fall_tick > 0.025 and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
+    end
+
+    if love.keyboard.isDown("a", "left") and shift_tick > 0.1 and not game_over then
+        shift_tick = 0
+        shift_piece2D(board, current_piece, -1)
+    end
+
+    if love.keyboard.isDown("d", "right") and shift_tick > 0.1 and not game_over then
+        shift_tick = 0
+        shift_piece2D(board, current_piece, 1)
     end
 
     if game_over then
