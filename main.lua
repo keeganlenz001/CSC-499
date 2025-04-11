@@ -13,7 +13,7 @@ ROW_OFFSET = 2
 COLUMN_OFFSET = 2
 DEPTH_OFFSET = 2 -- Every piece is on the second depth layer
 
-SCALE = 3
+SCALE = 5.45454545455
 
 SCALED_GRID = GRID * SCALE
 PADDING = SCALED_GRID
@@ -91,6 +91,7 @@ function love.load()
     game_over = false
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
+    nes_font:setFilter("nearest", "nearest")
 
     board = {}
     for i = 1, DEPTH + DEPTH_BUFFER do
@@ -386,7 +387,7 @@ function love.draw()
         end
     else
         for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + PADDING
+            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * SCALED_GRID + PADDING) + (PADDING / 2)
             local y_offset = PADDING + INFO_PANEL + PADDING
             
             for row = 1, #board[depth] - ROW_BUFFER do
