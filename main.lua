@@ -18,13 +18,15 @@ BOARD_WIDTH = COLUMNS * GRID
 BOARD_HEIGHT = ROWS * GRID
 
 INFO_PANEL = 14
+CONTROL_PANEL = 34
 FONT_SIZE = 8
 
-CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * DEPTH)
-CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING)
+CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * (DEPTH + 1))
+CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING) + (CONTROL_PANEL + PADDING)
 ASPECT_RATIO = 16/9
     
 love.window.setMode(CANVAS_WIDTH * 3, CANVAS_HEIGHT * 3, {resizable=true})
+-- love.window.setMode(CANVAS_WIDTH, CANVAS_HEIGHT, {resizable=true})
 
 ACTIVE_PIECE_VALUES = {1, 2, 3}
 PLACED_PIECE_VALUES = {4, 5, 6}
@@ -396,19 +398,19 @@ function love.draw()
 
     -- High Score
     formatted_top = string.format("%06d", high_score)
-    love.graphics.print("TOP", PADDING / 2, PADDING)
-    love.graphics.print(formatted_top, PADDING / 2, PADDING + FONT_SIZE)
+    love.graphics.print("TOP", PADDING, PADDING / 2)
+    love.graphics.print(formatted_top, PADDING, (PADDING / 2) + FONT_SIZE)
 
     -- Score
     formatted_score = string.format("%06d", score)
-    love.graphics.print("SCORE", (PADDING * 12) - (PADDING / 2), PADDING)
-    love.graphics.print(formatted_score, (PADDING * 12) - (PADDING / 2), PADDING + FONT_SIZE)
+    love.graphics.print("SCORE", PADDING * 12, PADDING / 2)
+    love.graphics.print(formatted_score, PADDING * 12, (PADDING / 2) + FONT_SIZE)
 
     -- Next Piece
-    love.graphics.print("NEXT", (PADDING * 23) - (PADDING / 2), PADDING)
+    love.graphics.print("NEXT", PADDING * 23, PADDING / 2)
     for depth = 1, #next_piece.shape do
-        local x_offset = (PADDING * 29) - (PADDING / 2)
-        local y_offset = PADDING
+        local x_offset = PADDING * 29
+        local y_offset = PADDING / 2
 
         for row = 1, #next_piece.shape[depth] do
             for column = 1, #next_piece.shape[depth][row] do
@@ -430,13 +432,13 @@ function love.draw()
 
     -- Level
     formatted_level = string.format("%02d", level)
-    love.graphics.print("LEVEL", (PADDING * 34) - PADDING / 2, PADDING)
-    love.graphics.print(formatted_level, (PADDING * 34) - (PADDING / 2) + (FONT_SIZE * 2), PADDING + FONT_SIZE)
+    love.graphics.print("LEVEL", PADDING * 34, PADDING / 2)
+    love.graphics.print(formatted_level, (PADDING * 34) + (FONT_SIZE * 2), (PADDING / 2) + FONT_SIZE)
 
     -- Draw boards
     for depth = 1, DEPTH do
-        local x_offset = (depth - 1) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
-        local y_offset = PADDING + INFO_PANEL + PADDING
+        local x_offset = (depth - 1) * (COLUMNS * GRID + PADDING) + PADDING
+        local y_offset = PADDING + INFO_PANEL
         local x = x_offset
         local y = y_offset
 
@@ -449,8 +451,8 @@ function love.draw()
 
     -- Draw blocks
     for depth = 1, #board do
-        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
-        local y_offset = PADDING + INFO_PANEL + PADDING
+        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
+        local y_offset = INFO_PANEL + PADDING
             
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
@@ -482,7 +484,7 @@ function love.draw()
     
     if game_over then
         for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
+            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
             local y_offset = PADDING + INFO_PANEL + PADDING
             
             for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
@@ -501,6 +503,19 @@ function love.draw()
         end
     end
 
+    love.graphics.setColor(1, 1, 1)
+    controls_base_y = INFO_PANEL + PADDING + (PADDING / 2) + BOARD_HEIGHT + (PIXEL * 2)
+
+    love.graphics.print("MOVEMENT", PADDING * 7 + (PADDING / 2), controls_base_y)
+    love.graphics.print("HORIZONTAL:A,D", PADDING * 4 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
+    love.graphics.print("DEPTH:SPACE,LSHIFT", PADDING * 2 + (PADDING / 2), controls_base_y + (FONT_SIZE * 3))
+    love.graphics.print("DOWN:S", PADDING * 8 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+
+    love.graphics.print("ROTATION", PADDING * 29 + (PADDING / 2), controls_base_y)
+    love.graphics.print("ROTATE:Q,E", PADDING * 28 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
+    love.graphics.print("TWIST:C,Z", PADDING * 29, controls_base_y + (FONT_SIZE * 3))
+    love.graphics.print("TILT:R,F", PADDING * 29 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+
     -- Reset canvas target
     love.graphics.setCanvas()
 
@@ -509,6 +524,20 @@ function love.draw()
     -- Draw canvas to screen with proper scaling
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
+
+    -- love.graphics.setColor(1, 0, 0)
+    -- grid = GRID * 3
+    -- for i = 0, love.graphics.getWidth() / grid do
+    --     love.graphics.line(i * grid, 0, i * grid, love.graphics.getHeight())
+    --     -- love.graphics.line(i * (grid + 1), 0, i * (grid + 1), love.graphics.getHeight())
+    --     -- love.graphics.line((i * grid) - 0.5, 0, (i * grid) - 0.5, love.graphics.getHeight())
+    -- end
+
+    -- for i = 0, love.graphics.getHeight() / grid  do
+    --     love.graphics.line(0, i * grid, love.graphics.getWidth(), i * grid)
+    --     -- love.graphics.line(0, (i * grid) - 0.5, love.graphics.getWidth(), (i * grid) - 0.5)
+    --     -- love.graphics.line(0, (i * (grid + 1)) - 0.5, love.graphics.getWidth(), (i * (grid + 1)) - 0.5)
+    -- end
 end
 
 function set_piece(board, piece)
