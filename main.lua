@@ -485,7 +485,7 @@ function love.draw()
     if game_over then
         for depth = 1, #board do
             local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
-            local y_offset = PADDING + INFO_PANEL + PADDING
+            local y_offset = INFO_PANEL + PADDING
             
             for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
                 local x = x_offset + PIXEL
@@ -1049,9 +1049,9 @@ function line_clear(board)
         end
     end
 
-    total_lines_cleared = total_lines_cleared + line_clear_count
-    -- level = math.floor(total_lines_cleared / 10)
-    level = math.floor(total_lines_cleared / 1)
+    total_lines_cleared = total_lines_cleared + (line_clear_count * 4)
+    level = math.floor(total_lines_cleared / 10)
+    -- level = math.floor(total_lines_cleared / 1)
 
     -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
@@ -1134,9 +1134,9 @@ function love.update(dt)
     if love.keyboard.isDown("a", "left") and not game_over then
         shift_buffer_tick_left = shift_buffer_tick_left + dt
         shift_buffer_tick_right = 0
-        if shift_buffer_tick_left > 0.25 then
+        if shift_buffer_tick_left > 0.1 then
             shift_tick = shift_tick + dt
-            if shift_tick > 0.1 then
+            if shift_tick > 0.05 then
                 shift_tick = 0
                 shift_piece2D(board, current_piece, -1)
             end
@@ -1144,9 +1144,9 @@ function love.update(dt)
     elseif love.keyboard.isDown("d", "right") and not game_over then
         shift_buffer_tick_right = shift_buffer_tick_right + dt
         shift_buffer_tick_left = 0
-        if shift_buffer_tick_right > 0.25 then
+        if shift_buffer_tick_right > 0.1 then
             shift_tick = shift_tick + dt
-            if shift_tick > 0.1 then
+            if shift_tick > 0.05 then
                 shift_tick = 0
                 shift_piece2D(board, current_piece, 1)
             end
