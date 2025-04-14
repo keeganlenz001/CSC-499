@@ -1,3 +1,4 @@
+
 GRID = 8
 
 ROWS = 20
@@ -18,13 +19,15 @@ BOARD_WIDTH = COLUMNS * GRID
 BOARD_HEIGHT = ROWS * GRID
 
 INFO_PANEL = 14
+CONTROL_PANEL = 34
 FONT_SIZE = 8
 
-CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * DEPTH)
-CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING)
+CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * (DEPTH + 1))
+CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING) + (CONTROL_PANEL + PADDING)
 ASPECT_RATIO = 16/9
     
 love.window.setMode(CANVAS_WIDTH * 3, CANVAS_HEIGHT * 3, {resizable=true})
+-- love.window.setMode(CANVAS_WIDTH, CANVAS_HEIGHT, {resizable=true})
 
 ACTIVE_PIECE_VALUES = {1, 2, 3}
 PLACED_PIECE_VALUES = {4, 5, 6}
@@ -35,10 +38,47 @@ RGB = 0.00392156862
 NES_CYAN = {0, 0.8, 0.8, 1}
 NES_DARK_BLUE = {0, 0.2, 0.4, 1}
 
-PIECE_COLORS = {
-    {66 * RGB, 66 * RGB, 255 * RGB}, -- Hollow
-    {99 * RGB, 173 * RGB, 255 * RGB}, -- Light
-    {66 * RGB, 66 * RGB, 255 * RGB} -- Dark
+PIECE_COLOR_SETS = {
+    {
+        {99 * RGB, 173 * RGB, 255 * RGB}, -- Light
+        {66 * RGB, 66 * RGB, 255 * RGB} -- Dark
+    },
+    {
+        {140 * RGB, 214 * RGB, 0},
+        {16 * RGB, 148 * RGB, 0}
+    },
+    {
+        {239 * RGB, 107 * RGB, 255 * RGB},
+        {156 * RGB, 24 * RGB, 206 * RGB}
+    },
+    {
+        {66 * RGB, 66 * RGB, 255 * RGB},
+        {90 * RGB, 231 * RGB, 49 * RGB},
+    },
+    {
+        {181 * RGB, 33 * RGB, 123 * RGB},
+        {66 * RGB, 222 * RGB, 132 * RGB}
+    },
+    {
+        {66 * RGB, 222 * RGB, 132 * RGB},
+        {148 * RGB, 148 * RGB, 255 * RGB}
+    },
+    {
+        {160 * RGB, 35 * RGB, 30 * RGB},
+        {80 * RGB, 80 * RGB, 80 * RGB}
+    },
+    {
+        {115 * RGB, 41 * RGB, 255 * RGB},
+        {107 * RGB, 0 * RGB, 66 * RGB}
+    },
+    {
+        {66 * RGB, 66 * RGB, 255 * RGB},
+        {181 * RGB, 49 * RGB, 33 * RGB}
+    },
+    {
+        {181 * RGB, 49 * RGB, 33 * RGB},
+        {231 * RGB, 156 * RGB, 33 * RGB}
+    }
 }
 
 PIXEL = 1
@@ -84,14 +124,18 @@ function love.load()
 
     fall_tick = 0
     shift_tick = 0
+    shift_buffer_tick = 0
     game_over_tick = 0
 
     level = 0
+    total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
     game_over = false
     game_over_time = nil
     game_over_row = 0
+
+    screen = 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -254,8 +298,8 @@ function love.load()
         }
     end
 
-    next_piece = piece_by_id(math.random(7))
-    new_piece()
+    -- next_piece = piece_by_id(math.random(7))
+    -- new_piece()
 end
 
 function new_game()
@@ -264,6 +308,7 @@ function new_game()
     game_over_tick = 0
 
     level = 0
+    total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
     game_over = false
@@ -280,6 +325,15 @@ function new_game()
     
     next_piece = piece_by_id(math.random(7))
     new_piece()
+end
+
+function set_canvas(canvas, offset_x, offset_y, scale)
+    -- Reset canvas target
+    love.graphics.setCanvas()
+
+    -- Draw canvas to screen with proper scaling
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
 end
 
 function contains(table, value)
@@ -301,7 +355,11 @@ function draw_piece(x, y, piece_type)
         love.graphics.rectangle("fill", x + sprite[1].x, y + sprite[1].y, sprite[1].w, sprite[1].h)
         
         -- Second rectangle (main color fill)
-        love.graphics.setColor(PIECE_COLORS[piece_type])
+        if piece_type == 1 or piece_type == 3 then
+            love.graphics.setColor(PIECE_COLORS[2])
+        else
+            love.graphics.setColor(PIECE_COLORS[1])
+        end
         love.graphics.rectangle("fill", x + sprite[2].x, y + sprite[2].y, sprite[2].w, sprite[2].h)
         
         -- Remaining rectangles (white highlights)
@@ -342,27 +400,52 @@ end
 function love.draw()
     love.graphics.setCanvas(canvas)
     love.graphics.clear()
-
     love.graphics.setLineStyle("rough")
+
+    local scale, offset_x, offset_y = get_scale_and_offset()
 
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
 
+    if screen == 0 then
+        center_x = canvas:getWidth() / 2
+        center_y = canvas:getHeight() / 2
+        button_width = PADDING * 8
+        button_height = PADDING * 2
+    
+        buttons = {
+            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) - (button_height / 2), button_width, button_height, "START"},
+            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) + (button_height / 2) + PADDING, button_width, button_height, "OPTIONS"},
+            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) + (button_height * 2) + PADDING, button_width, button_height, "QUIT"}
+        }
+
+        for i = 1, #buttons do
+            love.graphics.rectangle("line", buttons[i][1], buttons[i][2], buttons[i][3], buttons[i][4])
+            love.graphics.printf(buttons[i][5], buttons[i][1], buttons[i][2] + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), button_width, "center")
+        end
+
+        set_canvas(canvas, offset_x, offset_y, scale)
+
+        return
+    end
+
     -- High Score
     formatted_top = string.format("%06d", high_score)
-    love.graphics.print("TOP", PADDING / 2, PADDING)
-    love.graphics.print(formatted_top, PADDING / 2, PADDING + FONT_SIZE)
+    love.graphics.print("TOP", PADDING, PADDING / 2)
+    love.graphics.print(formatted_top, PADDING, (PADDING / 2) + FONT_SIZE)
 
     -- Score
     formatted_score = string.format("%06d", score)
-    love.graphics.print("SCORE", (PADDING * 12) - (PADDING / 2), PADDING)
-    love.graphics.print(formatted_score, (PADDING * 12) - (PADDING / 2), PADDING + FONT_SIZE)
+    love.graphics.print("SCORE", PADDING * 12, PADDING / 2)
+    love.graphics.print(formatted_score, PADDING * 12, (PADDING / 2) + FONT_SIZE)
 
     -- Next Piece
-    love.graphics.print("NEXT", (PADDING * 23) - (PADDING / 2), PADDING)
+    PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
+
+    love.graphics.print("NEXT", PADDING * 23, PADDING / 2)
     for depth = 1, #next_piece.shape do
-        local x_offset = (PADDING * 29) - (PADDING / 2)
-        local y_offset = PADDING
+        local x_offset = PADDING * 29
+        local y_offset = PADDING / 2
 
         for row = 1, #next_piece.shape[depth] do
             for column = 1, #next_piece.shape[depth][row] do
@@ -384,13 +467,13 @@ function love.draw()
 
     -- Level
     formatted_level = string.format("%02d", level)
-    love.graphics.print("LEVEL", (PADDING * 34) - PADDING / 2, PADDING)
-    love.graphics.print(formatted_level, (PADDING * 34) - (PADDING / 2) + (FONT_SIZE * 2), PADDING + FONT_SIZE)
+    love.graphics.print("LEVEL", PADDING * 34, PADDING / 2)
+    love.graphics.print(formatted_level, (PADDING * 34) + (FONT_SIZE * 2), (PADDING / 2) + FONT_SIZE)
 
     -- Draw boards
     for depth = 1, DEPTH do
-        local x_offset = (depth - 1) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
-        local y_offset = PADDING + INFO_PANEL + PADDING
+        local x_offset = (depth - 1) * (COLUMNS * GRID + PADDING) + PADDING
+        local y_offset = PADDING + INFO_PANEL
         local x = x_offset
         local y = y_offset
 
@@ -403,8 +486,8 @@ function love.draw()
 
     -- Draw blocks
     for depth = 1, #board do
-        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
-        local y_offset = PADDING + INFO_PANEL + PADDING
+        local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
+        local y_offset = INFO_PANEL + PADDING
             
         for row = 1, #board[depth] do
             for column = 1, #board[depth][row] do
@@ -436,8 +519,8 @@ function love.draw()
     
     if game_over then
         for depth = 1, #board do
-            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + (PADDING / 2)
-            local y_offset = PADDING + INFO_PANEL + PADDING
+            local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
+            local y_offset = INFO_PANEL + PADDING
             
             for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
                 local x = x_offset + PIXEL
@@ -455,28 +538,34 @@ function love.draw()
         end
     end
 
+    love.graphics.setColor(1, 1, 1)
+    controls_base_y = INFO_PANEL + PADDING + (PADDING / 2) + BOARD_HEIGHT + (PIXEL * 2)
+
+    love.graphics.print("MOVEMENT", PADDING * 7 + (PADDING / 2), controls_base_y)
+    love.graphics.print("HORIZONTAL:A,D", PADDING * 4 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
+    love.graphics.print("DEPTH:SPACE,LSHIFT", PADDING * 2 + (PADDING / 2), controls_base_y + (FONT_SIZE * 3))
+    love.graphics.print("DOWN:S", PADDING * 8 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+
+    love.graphics.print("ROTATION", PADDING * 29 + (PADDING / 2), controls_base_y)
+    love.graphics.print("ROTATE:Q,E", PADDING * 28 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
+    love.graphics.print("TWIST:C,Z", PADDING * 29, controls_base_y + (FONT_SIZE * 3))
+    love.graphics.print("TILT:R,F", PADDING * 29 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+
+    set_canvas(canvas, offset_x, offset_y, scale)
 
     -- love.graphics.setColor(1, 0, 0)
-    -- for i = 0, WIDTH / GRID do
-    --     love.graphics.line(i * GRID, 0, i * GRID, HEIGHT)
-    --     -- love.graphics.line(i * (GRID + 1), 0, i * (GRID + 1), HEIGHT)
-    --     -- love.graphics.line((i * GRID) - 0.5, 0, (i * GRID) - 0.5, HEIGHT)
+    -- grid = GRID * 3
+    -- for i = 0, love.graphics.getWidth() / grid do
+    --     love.graphics.line(i * grid, 0, i * grid, love.graphics.getHeight())
+    --     -- love.graphics.line(i * (grid + 1), 0, i * (grid + 1), love.graphics.getHeight())
+    --     -- love.graphics.line((i * grid) - 0.5, 0, (i * grid) - 0.5, love.graphics.getHeight())
     -- end
 
-    -- for i = 0, HEIGHT / GRID  do
-    --     love.graphics.line(0, i * GRID, WIDTH, i * GRID)
-    --     -- love.graphics.line(0, (i * GRID) - 0.5, WIDTH, (i * GRID) - 0.5)
-    --     -- love.graphics.line(0, (i * (GRID + 1)) - 0.5, WIDTH, (i * (GRID + 1)) - 0.5)
+    -- for i = 0, love.graphics.getHeight() / grid  do
+    --     love.graphics.line(0, i * grid, love.graphics.getWidth(), i * grid)
+    --     -- love.graphics.line(0, (i * grid) - 0.5, love.graphics.getWidth(), (i * grid) - 0.5)
+    --     -- love.graphics.line(0, (i * (grid + 1)) - 0.5, love.graphics.getWidth(), (i * (grid + 1)) - 0.5)
     -- end
-
-    -- Reset canvas target
-    love.graphics.setCanvas()
-
-    local scale, offset_x, offset_y = get_scale_and_offset()
-    
-    -- Draw canvas to screen with proper scaling
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
 end
 
 function set_piece(board, piece)
@@ -580,11 +669,11 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    current_piece = new_I_PIECE()
+    -- current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
 
-    -- current_piece = next_piece
-    -- next_piece = piece_by_id(math.random(7))
+    current_piece = next_piece
+    next_piece = piece_by_id(math.random(7))
 
     if not is_valid_position(board, current_piece) then
         -- current_piece.position.y = current_piece.position.y - 1
@@ -988,6 +1077,10 @@ function line_clear(board)
         end
     end
 
+    total_lines_cleared = total_lines_cleared + (line_clear_count * 4)
+    level = math.floor(total_lines_cleared / 10)
+    -- level = math.floor(total_lines_cleared / 1)
+
     -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
         score = score + (40 * (level + 1) * DEPTH)
@@ -1011,11 +1104,6 @@ function love.keypressed(key)
     if game_over then
         return
     end
-
-    -- Debug
-    -- if love.keyboard.isDown("s", "down") then
-    --     lower_piece(board, current_piece)
-    -- end
 
     if key == "a" or key == "left" then
         shift_piece2D(board, current_piece, -1)
@@ -1041,27 +1129,60 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
-    fall_tick = fall_tick + dt
-    shift_tick = shift_tick + dt
+    if screen == 0 then
+        return
+    end
 
-    -- if fall_tick > 0.25 then
-    --     fall_tick = 0
-    --     lower_piece(board, current_piece)
-    -- end
+    fall_tick = fall_tick + dt
+
+    if level < 15 then
+        local drop_rates = {
+            0.01667, 0.021017, 0.026977, 0.035256, 0.04693,
+            0.06361, 0.0879, 0.1236, 0.1775, 0.2598,
+            0.388, 0.59, 0.92, 1.46, 2.36
+        }
+        fall_rate = drop_rates[level + 1]
+    else
+        local base = 2.36
+        local multiplier = 1.5
+        fall_rate = base * (multiplier ^ (level - 15))
+    end
+
+    fall_interval = 1 / (fall_rate * 60)
+
+    if fall_tick > fall_interval then
+        fall_tick = 0
+        lower_piece(board, current_piece)
+    end
 
     if love.keyboard.isDown("s", "down") and fall_tick > 0.025 and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
 
-    if love.keyboard.isDown("a", "left") and shift_tick > 0.1 and not game_over then
-        shift_tick = 0
-        shift_piece2D(board, current_piece, -1)
-    end
+    if not love.keyboard.isDown("a", "left") then shift_buffer_tick_left = 0 end
+    if not love.keyboard.isDown("d", "right") then shift_buffer_tick_right = 0 end
 
-    if love.keyboard.isDown("d", "right") and shift_tick > 0.1 and not game_over then
-        shift_tick = 0
-        shift_piece2D(board, current_piece, 1)
+    if love.keyboard.isDown("a", "left") and not game_over then
+        shift_buffer_tick_left = shift_buffer_tick_left + dt
+        shift_buffer_tick_right = 0
+        if shift_buffer_tick_left > 0.2 then
+            shift_tick = shift_tick + dt
+            if shift_tick > 0.05 then
+                shift_tick = 0
+                shift_piece2D(board, current_piece, -1)
+            end
+        end
+    elseif love.keyboard.isDown("d", "right") and not game_over then
+        shift_buffer_tick_right = shift_buffer_tick_right + dt
+        shift_buffer_tick_left = 0
+        if shift_buffer_tick_right > 0.2 then
+            shift_tick = shift_tick + dt
+            if shift_tick > 0.05 then
+                shift_tick = 0
+                shift_piece2D(board, current_piece, 1)
+            end
+        end
     end
 
     if game_over then
