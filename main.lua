@@ -1,3 +1,4 @@
+
 GRID = 8
 
 ROWS = 20
@@ -33,9 +34,6 @@ PLACED_PIECE_VALUES = {4, 5, 6}
 GHOST_PIECE_VALUE = 7
 
 RGB = 0.00392156862
-
-NES_CYAN = {0, 0.8, 0.8, 1}
-NES_DARK_BLUE = {0, 0.2, 0.4, 1}
 
 PIECE_COLOR_SETS = {
     {
@@ -133,6 +131,8 @@ function love.load()
     game_over = false
     game_over_time = nil
     game_over_row = 0
+
+    screen = 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -294,12 +294,11 @@ function love.load()
             position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
-
-    next_piece = piece_by_id(math.random(7))
-    new_piece()
 end
 
 function new_game()
+    screen = 3 
+
     fall_tick = 0
     shift_tick = 0
     game_over_tick = 0
@@ -322,6 +321,15 @@ function new_game()
     
     next_piece = piece_by_id(math.random(7))
     new_piece()
+end
+
+function set_canvas(canvas, offset_x, offset_y, scale)
+    -- Reset canvas target
+    love.graphics.setCanvas()
+
+    -- Draw canvas to screen with proper scaling
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
 end
 
 function contains(table, value)
@@ -388,13 +396,68 @@ end
 function love.draw()
     love.graphics.setCanvas(canvas)
     love.graphics.clear()
-
-    PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
-
     love.graphics.setLineStyle("rough")
+
+    local scale, offset_x, offset_y = get_scale_and_offset()
 
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
+
+    if screen == 0 then
+        mouse_x, mouse_y = love.mouse.getPosition()
+
+        center_x = canvas:getWidth() / 2
+        center_y = canvas:getHeight() / 2
+
+        bw = PADDING * 8
+        bh = PADDING * 2
+    
+        buttons = {
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) - (bh / 2), bw, bh, "START"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh / 2) + PADDING, bw, bh, "OPTIONS"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 2) + PADDING, bw, bh, "QUIT"}
+        }
+
+        hovering = false
+
+        for i = 1, #buttons do
+            bx = buttons[i][1]
+            by = buttons[i][2]
+
+            -- Button hover
+            if mouse_x > (bx * scale) + offset_x and mouse_x < (bx * scale) + offset_x + (bw * scale) and mouse_y > (by * scale) + offset_y and mouse_y < (by * scale) + offset_y + (bh * scale) then
+                hovering = true
+                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.rectangle("fill", bx, by, buttons[i][3], buttons[i][4])
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 then
+                        if i == 1 then
+                            new_game()
+                        elseif i == 2 then
+                            screen = 2
+                        elseif i == 3 then
+                            love.event.quit()
+                        end
+                    end
+                end
+            end
+
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.rectangle("line", bx, by, buttons[i][3], buttons[i][4])
+            love.graphics.printf(buttons[i][5], bx, by + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), bw, "center")
+        end
+
+        if hovering then
+            love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
+        else
+            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+        end
+
+        set_canvas(canvas, offset_x, offset_y, scale)
+
+        return
+    end
 
     -- High Score
     formatted_top = string.format("%06d", high_score)
@@ -407,6 +470,8 @@ function love.draw()
     love.graphics.print(formatted_score, PADDING * 12, (PADDING / 2) + FONT_SIZE)
 
     -- Next Piece
+    PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
+
     love.graphics.print("NEXT", PADDING * 23, PADDING / 2)
     for depth = 1, #next_piece.shape do
         local x_offset = PADDING * 29
@@ -442,7 +507,7 @@ function love.draw()
         local x = x_offset
         local y = y_offset
 
-        love.graphics.setColor(NES_CYAN)
+        love.graphics.setColor(PIECE_COLORS[1])
         love.graphics.rectangle("fill", x - PIXEL, y + PIXEL, (COLUMNS * GRID) + (PIXEL * 2), (ROWS * GRID + (PIXEL * 2)))
 
         love.graphics.setColor(0, 0, 0)
@@ -486,11 +551,13 @@ function love.draw()
         for depth = 1, #board do
             local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
             local y_offset = INFO_PANEL + PADDING
-            
+
             for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
                 local x = x_offset + PIXEL
                 local y = y_offset + ((row - 1) * GRID) + (PIXEL * 2)
 
+                love.graphics.setColor(0, 0, 0)
+                love.graphics.rectangle("fill", x_offset, y, PIXEL, GRID)
                 love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", x, y, (COLUMNS * GRID) - PIXEL, PIXEL * 2)
                 love.graphics.setColor(1, 1, 1)
@@ -516,14 +583,7 @@ function love.draw()
     love.graphics.print("TWIST:C,Z", PADDING * 29, controls_base_y + (FONT_SIZE * 3))
     love.graphics.print("TILT:R,F", PADDING * 29 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
 
-    -- Reset canvas target
-    love.graphics.setCanvas()
-
-    local scale, offset_x, offset_y = get_scale_and_offset()
-    
-    -- Draw canvas to screen with proper scaling
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(canvas, offset_x, offset_y, 0, scale, scale)
+    set_canvas(canvas, offset_x, offset_y, scale)
 
     -- love.graphics.setColor(1, 0, 0)
     -- grid = GRID * 3
@@ -1073,7 +1133,7 @@ end
 
 
 function love.keypressed(key)
-    if game_over then
+    if game_over or screen ~= 3 then
         return
     end
 
@@ -1101,6 +1161,10 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
+    if screen == 0 then
+        return
+    end
+
     fall_tick = fall_tick + dt
 
     if level < 15 then
@@ -1134,7 +1198,7 @@ function love.update(dt)
     if love.keyboard.isDown("a", "left") and not game_over then
         shift_buffer_tick_left = shift_buffer_tick_left + dt
         shift_buffer_tick_right = 0
-        if shift_buffer_tick_left > 0.1 then
+        if shift_buffer_tick_left > 0.2 then
             shift_tick = shift_tick + dt
             if shift_tick > 0.05 then
                 shift_tick = 0
@@ -1144,7 +1208,7 @@ function love.update(dt)
     elseif love.keyboard.isDown("d", "right") and not game_over then
         shift_buffer_tick_right = shift_buffer_tick_right + dt
         shift_buffer_tick_left = 0
-        if shift_buffer_tick_right > 0.1 then
+        if shift_buffer_tick_right > 0.2 then
             shift_tick = shift_tick + dt
             if shift_tick > 0.05 then
                 shift_tick = 0
@@ -1162,7 +1226,7 @@ function love.update(dt)
         end
 
         if game_over_row > 30 then -- Arbitrary wait time
-            new_game()
+            screen = 0
         end
     end
 end
