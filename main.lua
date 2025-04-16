@@ -110,6 +110,21 @@ PIECE_SPRITES = {
     }
 }
 
+MUSIC_1 = love.audio.newSource("music/music_1.mp3" ,"stream")
+MUSIC_2 = love.audio.newSource("music/music_2.mp3" ,"stream")
+MUSIC_3 = love.audio.newSource("music/music_3.mp3" ,"stream")
+END_MUSIC = love.audio.newSource("music/end_music.mp3" ,"stream")
+HIGH_SCORE_MUSIC = love.audio.newSource("music/high_score_music.mp3" ,"stream")
+
+SHIFT_SFX = love.audio.newSource("sfx/shift.mp3", "static")
+ROTATE_SFX = love.audio.newSource("sfx/rotate.mp3", "static")
+PLACE_PIECE_SFX = love.audio.newSource("sfx/place_piece.mp3", "static")
+LINE_CLEAR_SFX = love.audio.newSource("sfx/line_clear.mp3", "static")
+TETRIS_SFX = love.audio.newSource("sfx/tetris.mp3", "static")
+GAME_OVER_SFX = love.audio.newSource("sfx/game_over.mp3", "static")
+
+
+
 function love.load()
     canvas = love.graphics.newCanvas(CANVAS_WIDTH, CANVAS_HEIGHT)
     canvas:setFilter("nearest", "nearest")
@@ -133,6 +148,9 @@ function love.load()
     game_over_row = 0
 
     screen = 0
+    music = 1
+    music_volume = 5
+    sound_volume = 5
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -311,6 +329,12 @@ function new_game()
     game_over_time = nil
     game_over_row = 0
 
+    if music == 1 then
+        MUSIC_1:setVolume(music_volume / 10)
+        MUSIC_1:stop()
+        MUSIC_1:play()
+    end
+
     for depth = 1, #board do
         for row = 1, #board[depth] do
             for column = 1, #board[depth] do
@@ -415,7 +439,8 @@ function love.draw()
         buttons = {
             {center_x - (bw / 2), (center_y + (PADDING  * 4)) - (bh / 2), bw, bh, "START"},
             {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh / 2) + PADDING, bw, bh, "OPTIONS"},
-            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 2) + PADDING, bw, bh, "QUIT"}
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 2) + PADDING, bw, bh, "CREDITS"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 4), bw, bh, "QUIT"},
         }
 
         hovering = false
@@ -436,7 +461,7 @@ function love.draw()
                             new_game()
                         elseif i == 2 then
                             screen = 2
-                        elseif i == 3 then
+                        elseif i == 4 then
                             love.event.quit()
                         end
                     end
@@ -707,13 +732,17 @@ function new_piece()
     current_piece = next_piece
     next_piece = piece_by_id(math.random(7))
 
-    if not is_valid_position(board, current_piece) then
-        -- current_piece.position.y = current_piece.position.y - 1
-        -- if not is_valid_position(board, current_piece) then
-        --     current_piece.position.y = current_piece.position.y + 1
-        --     game_over = true
-        --     return
-        -- end
+    if not is_valid_position(board, current_piece) and not game_over then
+        current_piece.position.y = current_piece.position.y - 1
+        clear_piece(board, piece)
+        set_piece(board, piece)
+
+        GAME_OVER_SFX:setVolume(sound_volume / 10)
+        GAME_OVER_SFX:play()
+
+        MUSIC_1:stop()
+        MUSIC_2:stop()
+        MUSIC_3:stop()
 
         game_over = true
         return
@@ -784,6 +813,10 @@ function shift_piece2D(board, piece, dir)
 
     if not is_valid_position(board, piece) then
         piece.position.x = original_x
+    else
+        SHIFT_SFX:setVolume(sound_volume / 10)
+        SHIFT_SFX:stop()
+        SHIFT_SFX:play()
     end
 
     set_piece(board, piece)
@@ -797,6 +830,10 @@ function shift_piece3D(board, piece, dir)
 
     if not is_valid_position(board, piece) then
         piece.position.z = original_z
+    else
+        SHIFT_SFX:setVolume(sound_volume / 10)
+        SHIFT_SFX:stop()
+        SHIFT_SFX:play()
     end
 
     set_piece(board, piece)
@@ -854,6 +891,10 @@ function rotate_piece(board, piece, dir)
         for _, kick in ipairs(kicks) do
             piece.position.x = original_x + kick
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -864,6 +905,10 @@ function rotate_piece(board, piece, dir)
             piece.shape = original_shape
             piece.position.x = original_x
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
     
     -- Clear and redraw board with rotated piece
@@ -932,6 +977,10 @@ function twist_piece(board, piece, dir)
             
             -- Check if this position is valid
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -942,6 +991,10 @@ function twist_piece(board, piece, dir)
             piece.shape = original_shape
             piece.position.z = original_z
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
 
     -- Clear and redraw board with twisted piece
@@ -1005,6 +1058,10 @@ function tilt_piece(board, piece, dir)
         for _, z_kick in ipairs(z_kicks) do
             piece.position.z = original_z + z_kick
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -1018,6 +1075,10 @@ function tilt_piece(board, piece, dir)
             for _, y_kick in ipairs(y_kicks) do
                 piece.position.y = original_y + y_kick
                 if is_valid_position(board, piece) then
+                    ROTATE_SFX:setVolume(sound_volume / 10)
+                    ROTATE_SFX:stop()
+                    ROTATE_SFX:play()
+
                     shift_success = true
                     break
                 end
@@ -1030,6 +1091,10 @@ function tilt_piece(board, piece, dir)
             piece.position.z = original_z
             piece.position.y = original_y
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
     
     -- Clear and redraw board with tilted piece
@@ -1057,6 +1122,10 @@ function place_piece(board, piece)
             end
         end
     end
+
+    PLACE_PIECE_SFX:setVolume(sound_volume / 10)
+    PLACE_PIECE_SFX:stop()
+    PLACE_PIECE_SFX:play()
 
     line_clear(board)
     new_piece()
@@ -1182,7 +1251,7 @@ function love.update(dt)
 
     fall_interval = 1 / (fall_rate * 60)
 
-    if fall_tick > fall_interval then
+    if fall_tick > fall_interval and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
