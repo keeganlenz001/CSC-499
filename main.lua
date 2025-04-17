@@ -35,9 +35,6 @@ GHOST_PIECE_VALUE = 7
 
 RGB = 0.00392156862
 
-NES_CYAN = {0, 0.8, 0.8, 1}
-NES_DARK_BLUE = {0, 0.2, 0.4, 1}
-
 PIECE_COLOR_SETS = {
     {
         {99 * RGB, 173 * RGB, 255 * RGB}, -- Light
@@ -113,6 +110,21 @@ PIECE_SPRITES = {
     }
 }
 
+MUSIC_1 = love.audio.newSource("music/music_1.mp3" ,"stream")
+MUSIC_2 = love.audio.newSource("music/music_2.mp3" ,"stream")
+MUSIC_3 = love.audio.newSource("music/music_3.mp3" ,"stream")
+END_MUSIC = love.audio.newSource("music/end_music.mp3" ,"stream")
+HIGH_SCORE_MUSIC = love.audio.newSource("music/high_score_music.mp3" ,"stream")
+
+SHIFT_SFX = love.audio.newSource("sfx/shift.mp3", "static")
+ROTATE_SFX = love.audio.newSource("sfx/rotate.mp3", "static")
+PLACE_PIECE_SFX = love.audio.newSource("sfx/place_piece.mp3", "static")
+LINE_CLEAR_SFX = love.audio.newSource("sfx/line_clear.mp3", "static")
+TETRIS_SFX = love.audio.newSource("sfx/tetris.mp3", "static")
+GAME_OVER_SFX = love.audio.newSource("sfx/game_over.mp3", "static")
+
+
+
 function love.load()
     canvas = love.graphics.newCanvas(CANVAS_WIDTH, CANVAS_HEIGHT)
     canvas:setFilter("nearest", "nearest")
@@ -135,7 +147,10 @@ function love.load()
     game_over_time = nil
     game_over_row = 0
 
-    screen = 0
+    screen = "main"
+    music = "MUSIC 1"
+    music_volume = 5
+    sound_volume = 5
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -297,12 +312,11 @@ function love.load()
             position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
-
-    -- next_piece = piece_by_id(math.random(7))
-    -- new_piece()
 end
 
 function new_game()
+    screen = "game"
+
     fall_tick = 0
     shift_tick = 0
     game_over_tick = 0
@@ -314,6 +328,12 @@ function new_game()
     game_over = false
     game_over_time = nil
     game_over_row = 0
+
+    if music == "MUSIC 1" then
+        MUSIC_1:setVolume(music_volume / 10)
+        MUSIC_1:stop()
+        MUSIC_1:play()
+    end
 
     for depth = 1, #board do
         for row = 1, #board[depth] do
@@ -407,25 +427,145 @@ function love.draw()
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
 
-    if screen == 0 then
-        center_x = canvas:getWidth() / 2
-        center_y = canvas:getHeight() / 2
-        button_width = PADDING * 8
-        button_height = PADDING * 2
+    mouse_x, mouse_y = love.mouse.getPosition()
+    center_x = canvas:getWidth() / 2
+    center_y = canvas:getHeight() / 2
+
+    if screen == "main" then
+        bw = PADDING * 8
+        bh = PADDING * 2
     
         buttons = {
-            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) - (button_height / 2), button_width, button_height, "START"},
-            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) + (button_height / 2) + PADDING, button_width, button_height, "OPTIONS"},
-            {center_x - (button_width / 2), (center_y + (PADDING  * 4)) + (button_height * 2) + PADDING, button_width, button_height, "QUIT"}
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) - (bh / 2), bw, bh, "START"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh / 2) + PADDING, bw, bh, "OPTIONS"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 2) + PADDING, bw, bh, "CREDITS"},
+            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 4), bw, bh, "QUIT"},
         }
 
+        hovering = false
+
         for i = 1, #buttons do
-            love.graphics.rectangle("line", buttons[i][1], buttons[i][2], buttons[i][3], buttons[i][4])
-            love.graphics.printf(buttons[i][5], buttons[i][1], buttons[i][2] + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), button_width, "center")
+            bx = buttons[i][1]
+            by = buttons[i][2]
+
+            -- Button hover
+            if mouse_x > (bx * scale) + offset_x and mouse_x < (bx * scale) + offset_x + (bw * scale) and mouse_y > (by * scale) + offset_y and mouse_y < (by * scale) + offset_y + (bh * scale) then
+                hovering = true
+                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.rectangle("fill", bx, by, buttons[i][3], buttons[i][4])
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 then
+                        if i == 1 then
+                            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+                            new_game()
+                        elseif i == 2 then
+                            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+                            screen = "options"
+                        elseif i == 4 then
+                            love.event.quit()
+                        end
+                    end
+                end
+            end
+
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.rectangle("line", bx, by, buttons[i][3], buttons[i][4])
+            love.graphics.printf(buttons[i][5], bx, by + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), bw, "center")
+        end
+
+        if hovering then
+            love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
+        else
+            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
         end
 
         set_canvas(canvas, offset_x, offset_y, scale)
 
+        return
+    elseif screen == "options" then
+        bw = PADDING * 2
+        bh = PADDING * 2
+
+        spacing = PADDING * 10
+
+        buttons = {
+            {
+                center_x - spacing, center_y - (PADDING * 8), 
+                center_x - spacing - bw, center_y - (PADDING * 8) - (bh / 2),
+                center_x - spacing, center_y - (PADDING * 8) - bh,
+                music
+            },
+            {
+                center_x - spacing, center_y - (PADDING * 4), 
+                center_x - spacing - bw, center_y - (PADDING * 4) - (bh / 2),
+                center_x - spacing, center_y - (PADDING * 4) - bh,
+                "MUSIC VOLUME " .. music_volume
+            },
+            {
+                center_x - spacing, center_y, 
+                center_x - spacing - bw, center_y - (bh / 2),
+                center_x - spacing, center_y - bh,
+                "SOUND VOLUME " .. sound_volume
+            }
+        }
+
+        hovering = false
+
+        local function point_in_triangle(px, py, x1, y1, x2, y2, x3, y3)
+            local area = 0.5 * math.abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1))
+            
+            local area1 = 0.5 * math.abs((x1 - px) * (y2 - py) - (x2 - px) * (y1 - py))
+            local area2 = 0.5 * math.abs((x2 - px) * (y3 - py) - (x3 - px) * (y2 - py))
+            local area3 = 0.5 * math.abs((x3 - px) * (y1 - py) - (x1 - px) * (y3 - py))
+            
+            -- Point is inside if sum of the three areas equals the original triangle area
+            -- Adding a small epsilon to account for floating point errors
+            return math.abs(area - (area1 + area2 + area3)) < 0.01
+        end
+        
+        for i = 1, #buttons do
+            local x1 = (buttons[i][1] * scale) + offset_x
+            local y1 = (buttons[i][2] * scale) + offset_y
+            local x2 = (buttons[i][3] * scale) + offset_x
+            local y2 = (buttons[i][4] * scale) + offset_y
+            local x3 = (buttons[i][5] * scale) + offset_x
+            local y3 = (buttons[i][6] * scale) + offset_y
+
+            if point_in_triangle(mouse_x, mouse_y, x1, y1, x2, y2, x3, y3) then
+                hovering = true
+
+                love.graphics.polygon("fill",
+                    buttons[i][1], buttons[i][2], 
+                    buttons[i][3], buttons[i][4], 
+                    buttons[i][5], buttons[i][6]
+                )
+            elseif point_in_triangle(mouse_x, mouse_y, x1 + (spacing * scale * 2), y1, x2 + (spacing * scale * 2) + (bw * scale * 2), y2, x3 + (spacing * scale * 2), y3) then
+                hovering = true
+                
+                love.graphics.polygon("fill", 
+                    buttons[i][1] + (spacing * 2), buttons[i][2], 
+                    buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
+                    buttons[i][5] + (spacing * 2), buttons[i][6]
+                )
+            end
+
+            love.graphics.polygon("line",
+                buttons[i][1], buttons[i][2], 
+                buttons[i][3], buttons[i][4], 
+                buttons[i][5], buttons[i][6]
+            )
+            love.graphics.polygon("line", 
+                buttons[i][1] + (spacing * 2), buttons[i][2], 
+                buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
+                buttons[i][5] + (spacing * 2), buttons[i][6]
+            )
+
+            love.graphics.printf(buttons[i][7], buttons[i][1], buttons[i][2] - bh - (nes_font:getHeight() / 2), spacing, "center")
+        end
+
+        set_canvas(canvas, offset_x, offset_y, scale)
+        
         return
     end
 
@@ -477,7 +617,7 @@ function love.draw()
         local x = x_offset
         local y = y_offset
 
-        love.graphics.setColor(NES_CYAN)
+        love.graphics.setColor(PIECE_COLORS[1])
         love.graphics.rectangle("fill", x - PIXEL, y + PIXEL, (COLUMNS * GRID) + (PIXEL * 2), (ROWS * GRID + (PIXEL * 2)))
 
         love.graphics.setColor(0, 0, 0)
@@ -521,11 +661,13 @@ function love.draw()
         for depth = 1, #board do
             local x_offset = (depth - DEPTH_OFFSET) * (COLUMNS * GRID + PADDING) + PADDING
             local y_offset = INFO_PANEL + PADDING
-            
+
             for row = 1, math.min(game_over_row, #board[depth] - ROW_BUFFER) do
                 local x = x_offset + PIXEL
                 local y = y_offset + ((row - 1) * GRID) + (PIXEL * 2)
 
+                love.graphics.setColor(0, 0, 0)
+                love.graphics.rectangle("fill", x_offset, y, PIXEL, GRID)
                 love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", x, y, (COLUMNS * GRID) - PIXEL, PIXEL * 2)
                 love.graphics.setColor(1, 1, 1)
@@ -675,13 +817,17 @@ function new_piece()
     current_piece = next_piece
     next_piece = piece_by_id(math.random(7))
 
-    if not is_valid_position(board, current_piece) then
-        -- current_piece.position.y = current_piece.position.y - 1
-        -- if not is_valid_position(board, current_piece) then
-        --     current_piece.position.y = current_piece.position.y + 1
-        --     game_over = true
-        --     return
-        -- end
+    if not is_valid_position(board, current_piece) and not game_over then
+        current_piece.position.y = current_piece.position.y - 1
+        clear_piece(board, piece)
+        set_piece(board, piece)
+
+        GAME_OVER_SFX:setVolume(sound_volume / 10)
+        GAME_OVER_SFX:play()
+
+        MUSIC_1:stop()
+        MUSIC_2:stop()
+        MUSIC_3:stop()
 
         game_over = true
         return
@@ -752,6 +898,10 @@ function shift_piece2D(board, piece, dir)
 
     if not is_valid_position(board, piece) then
         piece.position.x = original_x
+    else
+        SHIFT_SFX:setVolume(sound_volume / 10)
+        SHIFT_SFX:stop()
+        SHIFT_SFX:play()
     end
 
     set_piece(board, piece)
@@ -765,6 +915,10 @@ function shift_piece3D(board, piece, dir)
 
     if not is_valid_position(board, piece) then
         piece.position.z = original_z
+    else
+        SHIFT_SFX:setVolume(sound_volume / 10)
+        SHIFT_SFX:stop()
+        SHIFT_SFX:play()
     end
 
     set_piece(board, piece)
@@ -822,6 +976,10 @@ function rotate_piece(board, piece, dir)
         for _, kick in ipairs(kicks) do
             piece.position.x = original_x + kick
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -832,6 +990,10 @@ function rotate_piece(board, piece, dir)
             piece.shape = original_shape
             piece.position.x = original_x
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
     
     -- Clear and redraw board with rotated piece
@@ -900,6 +1062,10 @@ function twist_piece(board, piece, dir)
             
             -- Check if this position is valid
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -910,6 +1076,10 @@ function twist_piece(board, piece, dir)
             piece.shape = original_shape
             piece.position.z = original_z
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
 
     -- Clear and redraw board with twisted piece
@@ -973,6 +1143,10 @@ function tilt_piece(board, piece, dir)
         for _, z_kick in ipairs(z_kicks) do
             piece.position.z = original_z + z_kick
             if is_valid_position(board, piece) then
+                ROTATE_SFX:setVolume(sound_volume / 10)
+                ROTATE_SFX:stop()
+                ROTATE_SFX:play()
+
                 shift_success = true
                 break
             end
@@ -986,6 +1160,10 @@ function tilt_piece(board, piece, dir)
             for _, y_kick in ipairs(y_kicks) do
                 piece.position.y = original_y + y_kick
                 if is_valid_position(board, piece) then
+                    ROTATE_SFX:setVolume(sound_volume / 10)
+                    ROTATE_SFX:stop()
+                    ROTATE_SFX:play()
+
                     shift_success = true
                     break
                 end
@@ -998,6 +1176,10 @@ function tilt_piece(board, piece, dir)
             piece.position.z = original_z
             piece.position.y = original_y
         end
+    else
+        ROTATE_SFX:setVolume(sound_volume / 10)
+        ROTATE_SFX:stop()
+        ROTATE_SFX:play()
     end
     
     -- Clear and redraw board with tilted piece
@@ -1025,6 +1207,10 @@ function place_piece(board, piece)
             end
         end
     end
+
+    PLACE_PIECE_SFX:setVolume(sound_volume / 10)
+    PLACE_PIECE_SFX:stop()
+    PLACE_PIECE_SFX:play()
 
     line_clear(board)
     new_piece()
@@ -1101,7 +1287,7 @@ end
 
 
 function love.keypressed(key)
-    if game_over then
+    if game_over or screen ~= "game" then
         return
     end
 
@@ -1129,7 +1315,7 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
-    if screen == 0 then
+    if screen ~= "game" then
         return
     end
 
@@ -1150,7 +1336,7 @@ function love.update(dt)
 
     fall_interval = 1 / (fall_rate * 60)
 
-    if fall_tick > fall_interval then
+    if fall_tick > fall_interval and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
@@ -1194,7 +1380,7 @@ function love.update(dt)
         end
 
         if game_over_row > 30 then -- Arbitrary wait time
-            new_game()
+            screen = "main"
         end
     end
 end
