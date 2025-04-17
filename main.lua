@@ -1,4 +1,3 @@
-
 GRID = 8
 
 ROWS = 20
@@ -147,10 +146,12 @@ function love.load()
     game_over_time = nil
     game_over_row = 0
 
-    screen = 0
+    screen = "main"
     music = 1
     music_volume = 5
     sound_volume = 5
+    game_type = "NORMAL"
+    start_level = 0
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -315,7 +316,7 @@ function love.load()
 end
 
 function new_game()
-    screen = 3 
+    screen = "game"
 
     fall_tick = 0
     shift_tick = 0
@@ -333,6 +334,14 @@ function new_game()
         MUSIC_1:setVolume(music_volume / 10)
         MUSIC_1:stop()
         MUSIC_1:play()
+    elseif music == 2 then
+        MUSIC_2:setVolume(music_volume / 10)
+        MUSIC_2:stop()
+        MUSIC_2:play()
+    elseif music == 3 then
+        MUSIC_3:setVolume(music_volume / 10)
+        MUSIC_3:stop()
+        MUSIC_3:play()
     end
 
     for depth = 1, #board do
@@ -427,12 +436,11 @@ function love.draw()
     love.graphics.setColor(1, 1, 1, 1) -- White text
     love.graphics.setFont(nes_font)
 
-    if screen == 0 then
-        mouse_x, mouse_y = love.mouse.getPosition()
+    mouse_x, mouse_y = love.mouse.getPosition()
+    center_x = canvas:getWidth() / 2
+    center_y = canvas:getHeight() / 2
 
-        center_x = canvas:getWidth() / 2
-        center_y = canvas:getHeight() / 2
-
+    if screen == "main" then
         bw = PADDING * 8
         bh = PADDING * 2
     
@@ -458,9 +466,11 @@ function love.draw()
                 function love.mousepressed(x, y, button, istouch)
                     if button == 1 then
                         if i == 1 then
+                            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
                             new_game()
                         elseif i == 2 then
-                            screen = 2
+                            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+                            screen = "options"
                         elseif i == 4 then
                             love.event.quit()
                         end
@@ -470,7 +480,7 @@ function love.draw()
 
             love.graphics.setColor(1, 1, 1)
             love.graphics.rectangle("line", bx, by, buttons[i][3], buttons[i][4])
-            love.graphics.printf(buttons[i][5], bx, by + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), bw, "center")
+            love.graphics.printf(buttons[i][5], bx, by + (bh / 2) - (nes_font:getHeight() / 2), bw, "center")
         end
 
         if hovering then
@@ -481,6 +491,168 @@ function love.draw()
 
         set_canvas(canvas, offset_x, offset_y, scale)
 
+        return
+    elseif screen == "options" then
+        bw = PADDING * 2
+        bh = PADDING * 2
+
+        spacing = PADDING * 4
+
+        buttons = {
+            {
+                center_x, center_y - (PADDING * 8) + (bh / 2), 
+                center_x - bw, center_y - (PADDING * 8),
+                center_x, center_y - (PADDING * 8) - (bh / 2),
+                game_type
+            },
+            {
+                center_x, center_y - (PADDING * 4) + (bh / 2), 
+                center_x - bw, center_y - (PADDING * 4),
+                center_x, center_y - (PADDING * 4) - (bh / 2),
+                music
+            },
+            {
+                center_x, center_y + (bh / 2), 
+                center_x - bw, center_y,
+                center_x, center_y - (bh / 2),
+                music_volume
+            },
+            {
+                center_x, center_y + (PADDING * 4) + (bh / 2), 
+                center_x - bw, center_y + (PADDING * 4),
+                center_x, center_y + (PADDING * 4) - (bh / 2),
+                sound_volume
+            },
+            {
+                center_x, center_y + (PADDING * 8) + (bh / 2), 
+                center_x - bw, center_y + (PADDING * 8),
+                center_x, center_y + (PADDING * 8) - (bh / 2),
+                start_level
+            }
+        }
+
+        hovering = false
+
+        local function point_in_triangle(px, py, x1, y1, x2, y2, x3, y3)
+            local area = 0.5 * math.abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1))
+            
+            local area1 = 0.5 * math.abs((x1 - px) * (y2 - py) - (x2 - px) * (y1 - py))
+            local area2 = 0.5 * math.abs((x2 - px) * (y3 - py) - (x3 - px) * (y2 - py))
+            local area3 = 0.5 * math.abs((x3 - px) * (y1 - py) - (x1 - px) * (y3 - py))
+            
+            -- Point is inside if sum of the three areas equals the original triangle area
+            -- Adding a small epsilon to account for floating point errors
+            return math.abs(area - (area1 + area2 + area3)) < 0.01
+        end
+        
+        for i = 1, #buttons do
+            local x1 = (buttons[i][1] * scale) + offset_x
+            local y1 = (buttons[i][2] * scale) + offset_y
+            local x2 = (buttons[i][3] * scale) + offset_x
+            local y2 = (buttons[i][4] * scale) + offset_y
+            local x3 = (buttons[i][5] * scale) + offset_x
+            local y3 = (buttons[i][6] * scale) + offset_y
+
+            if point_in_triangle(mouse_x, mouse_y, x1, y1, x2, y2, x3, y3) then
+                hovering = true
+
+                love.graphics.polygon("fill",
+                    buttons[i][1], buttons[i][2], 
+                    buttons[i][3], buttons[i][4], 
+                    buttons[i][5], buttons[i][6]
+                )
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 then
+                        if i == 1 then
+                            if game_type == "NORMAL" then
+                                game_type = "3D"
+                            else
+                                game_type = "NORMAL"
+                            end
+                        elseif i == 2 then
+                            if music > 1 then
+                                music = music - 1
+                            end
+                        elseif i == 3 then
+                            if music_volume > 0 then
+                                music_volume = music_volume - 1
+                            end
+                        elseif i == 4 then
+                            if sound_volume > 0 then
+                                sound_volume = sound_volume - 1
+                            end
+                        elseif i == 5 then
+                            if start_level > 0 then
+                                start_level = start_level - 1
+                            end
+                        end                                
+                    end
+                end
+            elseif point_in_triangle(mouse_x, mouse_y, x1 + (spacing * scale * 2), y1, x2 + (spacing * scale * 2) + (bw * scale * 2), y2, x3 + (spacing * scale * 2), y3) then
+                hovering = true
+                
+                love.graphics.polygon("fill", 
+                    buttons[i][1] + (spacing * 2), buttons[i][2], 
+                    buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
+                    buttons[i][5] + (spacing * 2), buttons[i][6]
+                )
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 then
+                        if i == 1 then
+                            if game_type == "NORMAL" then
+                                game_type = "3D"
+                            else
+                                game_type = "NORMAL"
+                            end
+                        elseif i == 2 then
+                            if music < 3 then
+                                music = music + 1
+                            end
+                        elseif i == 3 then
+                            if music_volume < 10 then
+                                music_volume = music_volume + 1
+                            end
+                        elseif i == 4 then
+                            if sound_volume < 10 then
+                                sound_volume = sound_volume + 1
+                            end
+                        elseif i == 5 then
+                            if start_level < 19 then
+                                start_level = start_level + 1
+                            end
+                        end                                
+                    end
+                end
+            end
+
+            love.graphics.polygon("line",
+                buttons[i][1], buttons[i][2], 
+                buttons[i][3], buttons[i][4], 
+                buttons[i][5], buttons[i][6]
+            )
+            love.graphics.polygon("line", 
+                buttons[i][1] + (spacing * 2), buttons[i][2], 
+                buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
+                buttons[i][5] + (spacing * 2), buttons[i][6]
+            )
+
+            love.graphics.printf(buttons[i][7], buttons[i][1], buttons[i][2] - bh + (nes_font:getHeight() / 2), spacing * 2, "center")
+        end
+
+        EXIT_BUTTON = {center_x - ((PADDING * 10) / 2), ((center_y * 2) - (PADDING  * 2)) - (bh / 2), PADDING * 10, bh, "MAIN MENU"}
+        love.graphics.rectangle("line", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
+        love.graphics.printf(EXIT_BUTTON[5], EXIT_BUTTON[1], EXIT_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 10, "center")
+
+        if hovering then
+            love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
+        else
+            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+        end
+
+        set_canvas(canvas, offset_x, offset_y, scale)
+        
         return
     end
 
@@ -1202,7 +1374,7 @@ end
 
 
 function love.keypressed(key)
-    if game_over or screen ~= 3 then
+    if game_over or screen ~= "game" then
         return
     end
 
@@ -1230,7 +1402,7 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
-    if screen == 0 then
+    if screen ~= "game" then
         return
     end
 
@@ -1295,7 +1467,7 @@ function love.update(dt)
         end
 
         if game_over_row > 30 then -- Arbitrary wait time
-            screen = 0
+            screen = "main"
         end
     end
 end
