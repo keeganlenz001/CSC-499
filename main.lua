@@ -1,9 +1,8 @@
-
 GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 4
+DEPTH = 1
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -24,7 +23,7 @@ FONT_SIZE = 8
 
 CANVAS_WIDTH = (BOARD_WIDTH * DEPTH) + (PADDING * (DEPTH + 1))
 CANVAS_HEIGHT = (BOARD_HEIGHT) + (PADDING * 2) + (INFO_PANEL + PADDING) + (CONTROL_PANEL + PADDING)
-ASPECT_RATIO = 16/9
+ASPECT_RATIO = 5/3
     
 love.window.setMode(CANVAS_WIDTH * 3, CANVAS_HEIGHT * 3, {resizable=true})
 -- love.window.setMode(CANVAS_WIDTH, CANVAS_HEIGHT, {resizable=true})
@@ -116,6 +115,12 @@ MUSIC_3 = love.audio.newSource("music/music_3.mp3" ,"stream")
 END_MUSIC = love.audio.newSource("music/end_music.mp3" ,"stream")
 HIGH_SCORE_MUSIC = love.audio.newSource("music/high_score_music.mp3" ,"stream")
 
+MUSIC_1:setLooping(true)
+MUSIC_2:setLooping(true)
+MUSIC_3:setLooping(true)
+END_MUSIC:setLooping(true)
+HIGH_SCORE_MUSIC:setLooping(true)
+
 SHIFT_SFX = love.audio.newSource("sfx/shift.mp3", "static")
 ROTATE_SFX = love.audio.newSource("sfx/rotate.mp3", "static")
 PLACE_PIECE_SFX = love.audio.newSource("sfx/place_piece.mp3", "static")
@@ -148,9 +153,13 @@ function love.load()
     game_over_row = 0
 
     screen = "main"
-    music = "MUSIC 1"
+    music = 3
     music_volume = 5
     sound_volume = 5
+    game_type = "NORMAL"
+    start_level = 0
+
+    MUSIC_3:play()
 
     nes_font = love.graphics.newFont("nintendo-nes-font.ttf", FONT_SIZE)
     nes_font:setFilter("nearest", "nearest")
@@ -321,19 +330,13 @@ function new_game()
     shift_tick = 0
     game_over_tick = 0
 
-    level = 0
+    level = start_level
     total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
     game_over = false
     game_over_time = nil
     game_over_row = 0
-
-    if music == "MUSIC 1" then
-        MUSIC_1:setVolume(music_volume / 10)
-        MUSIC_1:stop()
-        MUSIC_1:play()
-    end
 
     for depth = 1, #board do
         for row = 1, #board[depth] do
@@ -363,6 +366,29 @@ function contains(table, value)
         end
     end
     return false
+end
+
+function set_music_volume()
+    MUSIC_1:setVolume(music_volume / 10)
+    MUSIC_2:setVolume(music_volume / 10)
+    MUSIC_3:setVolume(music_volume / 10)
+end
+
+function set_sound_volume()
+    SHIFT_SFX:setVolume(sound_volume / 10)
+    ROTATE_SFX:setVolume(sound_volume / 10)
+    PLACE_PIECE_SFX:setVolume(sound_volume / 10)
+    LINE_CLEAR_SFX:setVolume(sound_volume / 10)
+    TETRIS_SFX:setVolume(sound_volume / 10)
+    GAME_OVER_SFX:setVolume(sound_volume / 10)
+end
+
+function stop_music()
+    MUSIC_1:stop()
+    MUSIC_2:stop()
+    MUSIC_3:stop()
+    END_MUSIC:stop()
+    HIGH_SCORE_MUSIC:stop()
 end
 
 function draw_piece(x, y, piece_type)
@@ -455,7 +481,7 @@ function love.draw()
                 love.graphics.rectangle("fill", bx, by, buttons[i][3], buttons[i][4])
 
                 function love.mousepressed(x, y, button, istouch)
-                    if button == 1 then
+                    if button == 1 and hovering then
                         if i == 1 then
                             love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
                             new_game()
@@ -471,7 +497,7 @@ function love.draw()
 
             love.graphics.setColor(1, 1, 1)
             love.graphics.rectangle("line", bx, by, buttons[i][3], buttons[i][4])
-            love.graphics.printf(buttons[i][5], bx, by + (buttons[i][4] / 2) - (nes_font:getHeight() / 2), bw, "center")
+            love.graphics.printf(buttons[i][5], bx, by + (bh / 2) - (nes_font:getHeight() / 2), bw, "center")
         end
 
         if hovering then
@@ -487,26 +513,38 @@ function love.draw()
         bw = PADDING * 2
         bh = PADDING * 2
 
-        spacing = PADDING * 10
+        spacing = PADDING * 4
 
         buttons = {
             {
-                center_x - spacing, center_y - (PADDING * 8), 
-                center_x - spacing - bw, center_y - (PADDING * 8) - (bh / 2),
-                center_x - spacing, center_y - (PADDING * 8) - bh,
-                music
+                center_x + bw +PADDING, center_y - (PADDING * 8) + (bh / 2), 
+                center_x + PADDING, center_y - (PADDING * 8),
+                center_x + bw  + PADDING, center_y - (PADDING * 8) - (bh / 2),
+                "PIECE SET:", game_type
             },
             {
-                center_x - spacing, center_y - (PADDING * 4), 
-                center_x - spacing - bw, center_y - (PADDING * 4) - (bh / 2),
-                center_x - spacing, center_y - (PADDING * 4) - bh,
-                "MUSIC VOLUME " .. music_volume
+                center_x + bw  + PADDING, center_y - (PADDING * 4) + (bh / 2), 
+                center_x + PADDING, center_y - (PADDING * 4),
+                center_x + bw  + PADDING, center_y - (PADDING * 4) - (bh / 2),
+                "MUSIC:", music
             },
             {
-                center_x - spacing, center_y, 
-                center_x - spacing - bw, center_y - (bh / 2),
-                center_x - spacing, center_y - bh,
-                "SOUND VOLUME " .. sound_volume
+                center_x + bw  + PADDING, center_y + (bh / 2), 
+                center_x + PADDING, center_y,
+                center_x + bw  + PADDING, center_y - (bh / 2),
+                "MUSIC VOLUME:", music_volume
+            },
+            {
+                center_x + bw  + PADDING, center_y + (PADDING * 4) + (bh / 2), 
+                center_x + PADDING, center_y + (PADDING * 4),
+                center_x + bw  + PADDING, center_y + (PADDING * 4) - (bh / 2),
+                "SOUND VOLUME:",  sound_volume
+            },
+            {
+                center_x + bw  + PADDING, center_y + (PADDING * 8) + (bh / 2), 
+                center_x + PADDING, center_y + (PADDING * 8),
+                center_x + bw  + PADDING, center_y + (PADDING * 8) - (bh / 2),
+                "STARTING LEVEL:",  start_level
             }
         }
 
@@ -540,6 +578,47 @@ function love.draw()
                     buttons[i][3], buttons[i][4], 
                     buttons[i][5], buttons[i][6]
                 )
+                
+                love.graphics.setColor(1, 1, 0)
+                love.graphics.printf(buttons[i][8], buttons[i][1], buttons[i][4] - (nes_font:getHeight() / 2), spacing * 2, "center")
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 and hovering then
+                        if i == 1 then
+                            if game_type == "NORMAL" then
+                                game_type = "3D"
+                            else
+                                game_type = "NORMAL"
+                            end
+                        elseif i == 2 then
+                            if music > 1 then
+                                music = music - 1
+
+                                if music == 1 then
+                                    stop_music()
+                                    MUSIC_1:play()
+                                else
+                                    stop_music()
+                                    MUSIC_2:play()
+                                end
+                            end
+                        elseif i == 3 then
+                            if music_volume > 0 then
+                                music_volume = music_volume - 1
+                                set_music_volume()
+                            end
+                        elseif i == 4 then
+                            if sound_volume > 0 then
+                                sound_volume = sound_volume - 1
+                                set_sound_volume()
+                            end
+                        elseif i == 5 then
+                            if start_level > 0 then
+                                start_level = start_level - 1
+                            end
+                        end                                
+                    end
+                end
             elseif point_in_triangle(mouse_x, mouse_y, x1 + (spacing * scale * 2), y1, x2 + (spacing * scale * 2) + (bw * scale * 2), y2, x3 + (spacing * scale * 2), y3) then
                 hovering = true
                 
@@ -548,8 +627,56 @@ function love.draw()
                     buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
                     buttons[i][5] + (spacing * 2), buttons[i][6]
                 )
+
+                love.graphics.setColor(1, 1, 0)
+                love.graphics.printf(buttons[i][8], buttons[i][1], buttons[i][4] - (nes_font:getHeight() / 2), spacing * 2, "center")
+
+                function love.mousepressed(x, y, button, istouch)
+                    if button == 1 and hovering then
+                        if i == 1 then
+                            if game_type == "NORMAL" then
+                                game_type = "3D"
+                            else
+                                game_type = "NORMAL"
+                            end
+                        elseif i == 2 then
+                            if music < 3 then
+                                music = music + 1
+
+                                if music == 2 then
+                                    stop_music()
+                                    MUSIC_2:play()
+                                else
+                                    stop_music()
+                                    MUSIC_3:play()
+                                end
+                            end
+                        elseif i == 3 then
+                            if music_volume < 10 then
+                                music_volume = music_volume + 1
+                                set_music_volume()
+                            end
+                        elseif i == 4 then
+                            if sound_volume < 10 then
+                                sound_volume = sound_volume + 1
+                                set_sound_volume()
+                            end
+                        elseif i == 5 then
+                            if start_level < 19 then
+                                start_level = start_level + 1
+                            end
+                        end                                
+                    end
+                end
+            else
+                love.graphics.setColor(1, 1, 1)
+                love.graphics.printf(buttons[i][8], buttons[i][1], buttons[i][4] - (nes_font:getHeight() / 2), spacing * 2, "center")
             end
 
+
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.printf(buttons[i][7], 0, buttons[i][4] - (nes_font:getHeight() / 2), center_x - PADDING, "right")
+            
             love.graphics.polygon("line",
                 buttons[i][1], buttons[i][2], 
                 buttons[i][3], buttons[i][4], 
@@ -560,8 +687,31 @@ function love.draw()
                 buttons[i][3] + (spacing * 2) + (bw * 2), buttons[i][4],
                 buttons[i][5] + (spacing * 2), buttons[i][6]
             )
+        end
 
-            love.graphics.printf(buttons[i][7], buttons[i][1], buttons[i][2] - bh - (nes_font:getHeight() / 2), spacing, "center")
+        EXIT_BUTTON = {center_x - (PADDING * 5), ((center_y * 2) - (PADDING  * 2)) - (bh / 2), PADDING * 10, bh, "MAIN MENU"}
+        if (mouse_x > (EXIT_BUTTON[1] * scale) + offset_x and mouse_x < (EXIT_BUTTON[1] * scale) + offset_x + (EXIT_BUTTON[3] * scale) and mouse_y > (EXIT_BUTTON[2] * scale) + offset_y and mouse_y < (EXIT_BUTTON[2] * scale) + offset_y + (EXIT_BUTTON[4] * scale)) then
+            hovering = true
+            
+            love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+            love.graphics.rectangle("fill", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
+
+            function love.mousepressed(x, y, button, istouch)
+                if button == 1 and hovering then
+                    love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+
+                    screen = "main"
+                end
+            end
+        end
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
+        love.graphics.printf(EXIT_BUTTON[5], EXIT_BUTTON[1], EXIT_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 10, "center")
+
+        if hovering then
+            love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
+        else
+            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
         end
 
         set_canvas(canvas, offset_x, offset_y, scale)
@@ -683,15 +833,15 @@ function love.draw()
     love.graphics.setColor(1, 1, 1)
     controls_base_y = INFO_PANEL + PADDING + (PADDING / 2) + BOARD_HEIGHT + (PIXEL * 2)
 
-    love.graphics.print("MOVEMENT", PADDING * 7 + (PADDING / 2), controls_base_y)
-    love.graphics.print("HORIZONTAL:A,D", PADDING * 4 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
-    love.graphics.print("DEPTH:SPACE,LSHIFT", PADDING * 2 + (PADDING / 2), controls_base_y + (FONT_SIZE * 3))
-    love.graphics.print("DOWN:S", PADDING * 8 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+    love.graphics.printf("MOVEMENT", PADDING, controls_base_y, PADDING * 21, "center")
+    love.graphics.printf("HORIZONTAL: A,D", PADDING, controls_base_y + FONT_SIZE + (FONT_SIZE / 2), PADDING * 21, "center")
+    love.graphics.printf("DEPTH: SPACE,LSHIFT", PADDING, controls_base_y + (FONT_SIZE * 3), PADDING * 21, "center")
+    love.graphics.printf("DOWN: S", PADDING, controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2), PADDING * 21, "center")
 
-    love.graphics.print("ROTATION", PADDING * 29 + (PADDING / 2), controls_base_y)
-    love.graphics.print("ROTATE:Q,E", PADDING * 28 + (PADDING / 2), controls_base_y + FONT_SIZE + (FONT_SIZE / 2))
-    love.graphics.print("TWIST:C,Z", PADDING * 29, controls_base_y + (FONT_SIZE * 3))
-    love.graphics.print("TILT:R,F", PADDING * 29 + (PADDING / 2), controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2))
+    love.graphics.printf("ROTATION", PADDING * 23, controls_base_y, PADDING * 21, "center")
+    love.graphics.printf("ROTATE: Q,E", PADDING * 23, controls_base_y + FONT_SIZE + (FONT_SIZE / 2), PADDING * 21, "center")
+    love.graphics.printf("TWIST: C,Z", PADDING * 23, controls_base_y + (FONT_SIZE * 3), PADDING * 21, "center")
+    love.graphics.printf("TILT: R,F", PADDING * 23, controls_base_y + (FONT_SIZE * 4) + (FONT_SIZE / 2), PADDING * 21, "center")
 
     set_canvas(canvas, offset_x, offset_y, scale)
 
@@ -822,12 +972,9 @@ function new_piece()
         clear_piece(board, piece)
         set_piece(board, piece)
 
-        GAME_OVER_SFX:setVolume(sound_volume / 10)
         GAME_OVER_SFX:play()
 
-        MUSIC_1:stop()
-        MUSIC_2:stop()
-        MUSIC_3:stop()
+        stop_music()
 
         game_over = true
         return
@@ -899,7 +1046,6 @@ function shift_piece2D(board, piece, dir)
     if not is_valid_position(board, piece) then
         piece.position.x = original_x
     else
-        SHIFT_SFX:setVolume(sound_volume / 10)
         SHIFT_SFX:stop()
         SHIFT_SFX:play()
     end
@@ -916,7 +1062,6 @@ function shift_piece3D(board, piece, dir)
     if not is_valid_position(board, piece) then
         piece.position.z = original_z
     else
-        SHIFT_SFX:setVolume(sound_volume / 10)
         SHIFT_SFX:stop()
         SHIFT_SFX:play()
     end
@@ -976,7 +1121,6 @@ function rotate_piece(board, piece, dir)
         for _, kick in ipairs(kicks) do
             piece.position.x = original_x + kick
             if is_valid_position(board, piece) then
-                ROTATE_SFX:setVolume(sound_volume / 10)
                 ROTATE_SFX:stop()
                 ROTATE_SFX:play()
 
@@ -991,7 +1135,6 @@ function rotate_piece(board, piece, dir)
             piece.position.x = original_x
         end
     else
-        ROTATE_SFX:setVolume(sound_volume / 10)
         ROTATE_SFX:stop()
         ROTATE_SFX:play()
     end
@@ -1062,7 +1205,6 @@ function twist_piece(board, piece, dir)
             
             -- Check if this position is valid
             if is_valid_position(board, piece) then
-                ROTATE_SFX:setVolume(sound_volume / 10)
                 ROTATE_SFX:stop()
                 ROTATE_SFX:play()
 
@@ -1077,7 +1219,6 @@ function twist_piece(board, piece, dir)
             piece.position.z = original_z
         end
     else
-        ROTATE_SFX:setVolume(sound_volume / 10)
         ROTATE_SFX:stop()
         ROTATE_SFX:play()
     end
@@ -1143,7 +1284,6 @@ function tilt_piece(board, piece, dir)
         for _, z_kick in ipairs(z_kicks) do
             piece.position.z = original_z + z_kick
             if is_valid_position(board, piece) then
-                ROTATE_SFX:setVolume(sound_volume / 10)
                 ROTATE_SFX:stop()
                 ROTATE_SFX:play()
 
@@ -1160,7 +1300,6 @@ function tilt_piece(board, piece, dir)
             for _, y_kick in ipairs(y_kicks) do
                 piece.position.y = original_y + y_kick
                 if is_valid_position(board, piece) then
-                    ROTATE_SFX:setVolume(sound_volume / 10)
                     ROTATE_SFX:stop()
                     ROTATE_SFX:play()
 
@@ -1177,7 +1316,6 @@ function tilt_piece(board, piece, dir)
             piece.position.y = original_y
         end
     else
-        ROTATE_SFX:setVolume(sound_volume / 10)
         ROTATE_SFX:stop()
         ROTATE_SFX:play()
     end
@@ -1208,7 +1346,6 @@ function place_piece(board, piece)
         end
     end
 
-    PLACE_PIECE_SFX:setVolume(sound_volume / 10)
     PLACE_PIECE_SFX:stop()
     PLACE_PIECE_SFX:play()
 
@@ -1264,18 +1401,22 @@ function line_clear(board)
     end
 
     total_lines_cleared = total_lines_cleared + (line_clear_count * 4)
-    level = math.floor(total_lines_cleared / 10)
+    level = start_level + math.floor(total_lines_cleared / 10)
     -- level = math.floor(total_lines_cleared / 1)
 
     -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
         score = score + (40 * (level + 1) * DEPTH)
+        LINE_CLEAR_SFX:play()
     elseif line_clear_count == 2 then
         score = score + (100 * (level + 1) * DEPTH)
+        LINE_CLEAR_SFX:play()
     elseif line_clear_count == 3 then
         score = score + (300 * (level + 1) * DEPTH)
+        LINE_CLEAR_SFX:play()
     elseif line_clear_count == 4 then
         score = score + (1200 * (level + 1) * DEPTH) -- Boom! Tetris!
+        TETRIS_SFX:play()
     end
 
     if score > high_score then
@@ -1321,22 +1462,25 @@ function love.update(dt)
 
     fall_tick = fall_tick + dt
 
-    if level < 15 then
+    if level < 19 then
         local drop_rates = {
-            0.01667, 0.021017, 0.026977, 0.035256, 0.04693,
-            0.06361, 0.0879, 0.1236, 0.1775, 0.2598,
-            0.388, 0.59, 0.92, 1.46, 2.36
+            -- 00-09
+            0.8, 0.71666, 0.26977, 0.6333, 0.4666,
+            0.38333, 0.3, 0.21666, 0.1333, 0.1,
+
+            0.08333, 0.08333, 0.08333, -- 10-12
+            0.0666, 0.0666, 0.0666, -- 13-15
+            0.05, 0.05, 0.05 -- 16-18
         }
+
         fall_rate = drop_rates[level + 1]
+    elseif level < 30 then
+        fall_rate = 0.0333
     else
-        local base = 2.36
-        local multiplier = 1.5
-        fall_rate = base * (multiplier ^ (level - 15))
+        fall_rate = 0.01666
     end
 
-    fall_interval = 1 / (fall_rate * 60)
-
-    if fall_tick > fall_interval and not game_over then
+    if fall_tick > fall_rate and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
