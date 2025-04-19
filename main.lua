@@ -1123,6 +1123,9 @@ function love.draw()
                             love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
 
                             hovering = false
+                            
+                            start_level = 0
+                            level = start_level
                             screen = "main"
                         elseif i == 4 then
                             love.event.quit()
