@@ -4,7 +4,7 @@ GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 4
+DEPTH = 1
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -149,9 +149,15 @@ function love.load()
     shift_buffer_tick = 0
     game_over_tick = 0
 
+    line_clear_active = false
+    line_clear_tick = 0
+    line_clear_targets = {} -- A list of cells to clear { {depth, row, col}, ... }
+    line_clear_rows = {}
+
     was_hovering = false
 
     level = 0
+    start_level = 0
     total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
@@ -459,8 +465,12 @@ function new_game()
 
     fall_tick = 0
     shift_tick = 0
+    line_clear_tick = 0
     game_over_tick = 0
 
+    line_clear_active = false
+
+    level = start_level
     total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
@@ -502,6 +512,8 @@ function set_music_volume()
     MUSIC_1:setVolume((music_volume / 10) * MASTER_VOLUME)
     MUSIC_2:setVolume((music_volume / 10) * MASTER_VOLUME)
     MUSIC_3:setVolume((music_volume / 10) * MASTER_VOLUME)
+    END_MUSIC:setVolume((music_volume / 10) * MASTER_VOLUME)
+    HIGH_SCORE_MUSIC:setVolume((music_volume / 10) * MASTER_VOLUME)
 end
 
 function set_sound_volume()
@@ -600,12 +612,18 @@ function love.draw()
     PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
 
     if screen == "main" then
+        -- High Score
+        formatted_top = string.format("%06d", high_score)
+        -- love.graphics.print("TOP - " .. formatted_top, PADDING / 2, PADDING / 2)
+        love.graphics.print("HIGH SCORE", PADDING, PADDING / 2)
+        love.graphics.print(formatted_top, PADDING, PADDING / 2 + nes_font:getHeight())
+
         title = {
             {
                 {0,1,1,1,1,3,3, 0, 0,0,0,0, 0, 1,1,1,2,2,0,0},
                 {0,0,0,0,3,3,0, 0, 0,0,0,0, 0, 1,1,0,0,2,2,0},
                 {0,0,0,2,2,0,0, 0, 0,0,0,0, 0, 1,3,0,0,0,1,1},
-                {0,0,3,3,2,2,0, 0, 1,1,1,1, 0, 1,2,0,0,0,1,1},
+                {0,0,3,3,2,2,0, 0, 1,1,1,1, 0, 1,3,0,0,0,1,1},
                 {0,0,0,0,0,1,2, 0, 0,0,0,0, 0, 1,2,0,0,0,3,3},
                 {2,2,0,0,0,2,2, 0, 0,0,0,0, 0, 2,2,0,0,3,3,0},
                 {0,1,1,1,1,2,0, 0, 0,0,0,0, 0, 2,1,1,1,1,0,0}
@@ -667,7 +685,8 @@ function love.draw()
             if mouse_x > (bx * scale) + offset_x and mouse_x < (bx * scale) + offset_x + (bw * scale) and mouse_y > (by * scale) + offset_y and mouse_y < (by * scale) + offset_y + (bh * scale) then
                 hovering = true
 
-                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                -- love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", bx, by, buttons[i][3], buttons[i][4])
 
                 function love.mousepressed(x, y, button, istouch)
@@ -685,6 +704,15 @@ function love.draw()
 
                             hovering = false
                             screen = "options"
+                        elseif i == 3 then
+                            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+
+                            pause_music()
+                            HIGH_SCORE_MUSIC:stop()
+                            HIGH_SCORE_MUSIC:play()
+
+                            hovering = false
+                            screen = "credits"
                         elseif i == 4 then
                             love.event.quit()
                         end
@@ -746,7 +774,7 @@ function love.draw()
                     center_x + bw + PADDING, center_y + (PADDING * 8) + (bh / 2), 
                     center_x + PADDING, center_y + (PADDING * 8),
                     center_x + bw + PADDING, center_y + (PADDING * 8) - (bh / 2),
-                    "STARTING LEVEL:",  level
+                    "STARTING LEVEL:",  start_level
                 }
             }
         elseif screen == "pause_options" then
@@ -868,8 +896,9 @@ function love.draw()
                                 set_sound_volume()
                             end
                         elseif i == 5 then
-                            if level > 0 then
-                                level = level - 1
+                            if start_level > 0 then
+                                start_level = start_level - 1
+                                level = start_level
                             end
                         end                                
                     end
@@ -948,8 +977,9 @@ function love.draw()
                                 set_sound_volume()
                             end
                         elseif i == 5 then
-                            if level < 19 then
-                                level = level + 1
+                            if start_level < 19 then
+                                start_level = start_level + 1
+                                level = start_level
                             end
                         end                                
                     end
@@ -980,7 +1010,8 @@ function love.draw()
             if (mouse_x > (EXIT_BUTTON[1] * scale) + offset_x and mouse_x < (EXIT_BUTTON[1] * scale) + offset_x + (EXIT_BUTTON[3] * scale) and mouse_y > (EXIT_BUTTON[2] * scale) + offset_y and mouse_y < (EXIT_BUTTON[2] * scale) + offset_y + (EXIT_BUTTON[4] * scale)) then
                 hovering = true
                 
-                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                -- love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
 
                 function love.mousepressed(x, y, button, istouch)
@@ -994,6 +1025,7 @@ function love.draw()
                     end
                 end
             end
+
             love.graphics.setColor(1, 1, 1)
             love.graphics.rectangle("line", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
             love.graphics.printf(EXIT_BUTTON[5], EXIT_BUTTON[1], EXIT_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 10, "center")
@@ -1002,7 +1034,8 @@ function love.draw()
             if (mouse_x > (RESUME_BUTTON[1] * scale) + offset_x and mouse_x < (RESUME_BUTTON[1] * scale) + offset_x + (RESUME_BUTTON[3] * scale) and mouse_y > (RESUME_BUTTON[2] * scale) + offset_y and mouse_y < (RESUME_BUTTON[2] * scale) + offset_y + (RESUME_BUTTON[4] * scale)) then
                 hovering = true
                 
-                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                -- love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", RESUME_BUTTON[1], RESUME_BUTTON[2], RESUME_BUTTON[3], RESUME_BUTTON[4])
 
                 function love.mousepressed(x, y, button, istouch)
@@ -1016,6 +1049,7 @@ function love.draw()
                     end
                 end
             end
+
             love.graphics.setColor(1, 1, 1)
             love.graphics.rectangle("line", RESUME_BUTTON[1], RESUME_BUTTON[2], RESUME_BUTTON[3], RESUME_BUTTON[4])
             love.graphics.printf(RESUME_BUTTON[5], RESUME_BUTTON[1], RESUME_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 6, "center")
@@ -1057,7 +1091,8 @@ function love.draw()
             if mouse_x > (bx * scale) + offset_x and mouse_x < (bx * scale) + offset_x + (bw * scale) and mouse_y > (by * scale) + offset_y and mouse_y < (by * scale) + offset_y + (bh * scale) then
                 hovering = true
 
-                love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                -- love.graphics.setColor(66 * RGB, 66 * RGB, 255 * RGB)
+                love.graphics.setColor(PIECE_COLORS[2])
                 love.graphics.rectangle("fill", bx, by, buttons[i][3], buttons[i][4])
 
                 function love.mousepressed(x, y, button, istouch)
@@ -1099,6 +1134,105 @@ function love.draw()
             love.graphics.rectangle("line", bx, by, buttons[i][3], buttons[i][4])
             love.graphics.printf(buttons[i][5], bx, by + (bh / 2) - (nes_font:getHeight() / 2), bw, "center")
         end
+
+        if hovering and not was_hovering then
+            TICK_SFX:play()
+            love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
+        elseif not hovering and was_hovering then
+            TICK_SFX:stop()
+            love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+        end
+
+        was_hovering = hovering
+
+        set_canvas(canvas, offset_x, offset_y, scale)
+
+        return
+    elseif screen == "credits" then
+        credits = {
+            {
+                "PROGRAMMER AND CREATOR",
+                {"KEEGAN LENZ"}
+            },
+            {
+                "PLAY TESTERS",
+                {"TALAL ARSHAD", "ELEANOR CORNISH", "CLARE MARVEL"}
+            },
+            {
+                "ART,SOUND EFFECTS,AND MUSIC",
+                {"NINTENDO NES TETRIS"}
+            },
+            {
+                "CAPSTONE SUPERVISOR",
+                {"DR.CHANG-SHYH PENG"}
+            }
+        }
+
+        hovering = false
+    
+        local current_y = PADDING * 2
+
+        for _, section in ipairs(credits) do
+            local title = section[1]
+            local names = section[2]
+
+            -- Draw the category title
+            love.graphics.setFont(nes_font)
+            love.graphics.printf(title, 0, current_y - (nes_font:getHeight() / 2), canvas:getWidth(), "center")
+
+            -- Draw underline
+            local title_width = nes_font:getWidth(title)
+            love.graphics.line(
+                center_x - (title_width / 2) - PADDING,
+                current_y + (nes_font:getHeight() / 2) + (PADDING / 4),
+                center_x + (title_width / 2) + PADDING,
+                current_y + (nes_font:getHeight() / 2) + (PADDING / 4)
+            )
+
+            current_y = current_y + PADDING * 2
+
+            -- Draw each name in the section
+            for _, name in ipairs(names) do
+                love.graphics.printf(name, 0, current_y - (nes_font:getHeight() / 2), canvas:getWidth(), "center")
+                current_y = current_y + PADDING + (PADDING / 2)
+            end
+
+            current_y = current_y + (PADDING * 2)
+        end
+
+
+        EXIT_BUTTON = {center_x - (PADDING * 5), ((center_y * 2) - (PADDING  * 2)) - (bh / 2), PADDING * 10, bh, "MAIN MENU"}
+        if (mouse_x > (EXIT_BUTTON[1] * scale) + offset_x and mouse_x < (EXIT_BUTTON[1] * scale) + offset_x + (EXIT_BUTTON[3] * scale) and mouse_y > (EXIT_BUTTON[2] * scale) + offset_y and mouse_y < (EXIT_BUTTON[2] * scale) + offset_y + (EXIT_BUTTON[4] * scale)) then
+            hovering = true
+            
+            love.graphics.setColor(PIECE_COLORS[2])
+            love.graphics.rectangle("fill", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
+
+            function love.mousepressed(x, y, button, istouch)
+                if button == 1 and hovering then
+                    SELECT_SFX:stop()
+                    SELECT_SFX:play()
+
+                    pause_music()
+
+                    if music == 1 then
+                        MUSIC_1:play()
+                    elseif music == 2 then
+                        MUSIC_2:play()
+                    else
+                        MUSIC_3: play()
+                    end
+
+                    love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
+
+                    screen = "main"
+                end
+            end
+        end
+
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", EXIT_BUTTON[1], EXIT_BUTTON[2], EXIT_BUTTON[3], EXIT_BUTTON[4])
+        love.graphics.printf(EXIT_BUTTON[5], EXIT_BUTTON[1], EXIT_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 10, "center")
 
         if hovering and not was_hovering then
             TICK_SFX:play()
@@ -1382,28 +1516,28 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    -- current_piece = new_I_PIECE()
+    current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
     -- current_piece = new_3D_O_PIECE()
     -- current_piece = new_3D_T_PIECE()
 
-    current_piece = next_piece
-    next_piece = piece_by_id(math.random(7))
+    -- current_piece = next_piece
+    -- next_piece = piece_by_id(math.random(7))
 
-    if not is_valid_position(board, current_piece) and not game_over then
-        -- current_piece.position.y = current_piece.position.y - 1
-        clear_piece(board, current_piece)
-        set_piece(board, current_piece)
+    -- if not is_valid_position(board, current_piece) and not game_over then
+    --     -- current_piece.position.y = current_piece.position.y - 1
+    --     clear_piece(board, current_piece)
+    --     set_piece(board, current_piece)
 
-        GAME_OVER_SFX:play()
+    --     GAME_OVER_SFX:play()
 
-        stop_music()
+    --     stop_music()
 
-        game_over = true
-        return
-    end
+    --     game_over = true
+    --     return
+    -- end
 
-    set_piece(board, current_piece)
+    -- set_piece(board, current_piece)
 end
 
 function is_valid_position(board, piece)
@@ -1777,55 +1911,59 @@ function place_piece(board, piece)
 end
 
 function line_clear(board)
+    if line_clear_active then return end
+
     local line_clear_count = 0
+    local rows_to_clear = {}
 
     for row = 1, ROWS + ROW_BUFFER do
-        local row_full_across_all_depths = true
-        
-        -- Check if this row is full across all depths
+        local full = true
+
         for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
-            local depth_row_full = true
-            for column = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
-                if not contains(PLACED_PIECE_VALUES, board[depth][row][column]) then
-                    depth_row_full = false
+            for col = COLUMN_OFFSET, COLUMNS + COLUMN_BUFFER - COLUMN_OFFSET do
+                if not contains(PLACED_PIECE_VALUES, board[depth][row][col]) then
+                    full = false
                     break
                 end
             end
-            
-            -- If this row isn't full in any depth, then it's not full across all depths
-            if not depth_row_full then
-                row_full_across_all_depths = false
-                break
-            end
+            if not full then break end
         end
-        
-        -- If the row is full across all depths, clear it everywhere
-        if row_full_across_all_depths then
+
+        if full then
+            table.insert(rows_to_clear, row)
             line_clear_count = line_clear_count + 1
-            
-            -- Clear this row in all depths and move rows down
-            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
-                -- Move all rows above this line down by one row
-                for move_row = row, 2, -1 do
-                    for column = 1, COLUMNS + COLUMN_BUFFER do
-                        board[depth][move_row][column] = board[depth][move_row - 1][column]
-                    end
-                end
-                
-                -- Clear the top row
-                for column = 1, COLUMNS + COLUMN_BUFFER do
-                    board[depth][1][column] = 0
-                end
-            end
-            
-            -- Don't increment row since we need to check the same row again
-            row = row - 1
         end
     end
 
+    if line_clear_count > 0 then
+        -- Determine inside-out column clear order
+        local col_order = {}
+        local mid = math.floor((COLUMN_OFFSET + COLUMNS + COLUMN_BUFFER - 1) / 2)
+        for offset = 0, mid - COLUMN_OFFSET do
+            local left = mid - offset
+            local right = mid + offset + 1
+
+            if left >= COLUMN_OFFSET then table.insert(col_order, left) end
+            if right < COLUMN_OFFSET + COLUMNS then table.insert(col_order, right) end
+        end
+
+        -- Build targets for all rows, per column index
+        for _, col in ipairs(col_order) do
+            local step = {} -- all cells to clear on this animation tick
+            for _, row in ipairs(rows_to_clear) do
+                for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                    table.insert(step, {depth, row, col})
+                end
+            end
+            table.insert(line_clear_targets, step)
+        end
+
+        line_clear_active = true
+        line_clear_rows = rows_to_clear -- store the rows for clearing
+    end
+
     total_lines_cleared = total_lines_cleared + (line_clear_count * 4)
-    level = level + math.floor(total_lines_cleared / 10)
-    -- level = math.floor(total_lines_cleared / 1)
+    level = start_level + math.floor(total_lines_cleared / 10)
 
     -- NES Tetris standard for score calculation (multiplied by depth)
     if line_clear_count == 1 then
@@ -1868,6 +2006,18 @@ function love.keypressed(key)
             screen = "main"
         elseif screen == "pause_options" then
             screen = "pause"
+        elseif screen == "credits" then
+            pause_music()
+
+            if music == 1 then
+                MUSIC_1:play()
+            elseif music == 2 then
+                MUSIC_2:play()
+            else
+                MUSIC_3: play()
+            end
+
+            screen = "main"
         end
     end
 
@@ -1923,12 +2073,12 @@ function love.update(dt)
         fall_rate = 0.01666
     end
 
-    if fall_tick > fall_rate and not game_over then
+    if fall_tick > fall_rate and not line_clear_active and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
 
-    if love.keyboard.isDown("s", "down") and fall_tick > 0.025 and not game_over then
+    if love.keyboard.isDown("s", "down") and fall_tick > 0.025 and not line_clear_active and not game_over then
         fall_tick = 0
         lower_piece(board, current_piece)
     end
@@ -1936,7 +2086,7 @@ function love.update(dt)
     if not love.keyboard.isDown("a", "left") then shift_buffer_tick_left = 0 end
     if not love.keyboard.isDown("d", "right") then shift_buffer_tick_right = 0 end
 
-    if love.keyboard.isDown("a", "left") and not game_over then
+    if love.keyboard.isDown("a", "left") and not line_clear_active and not game_over then
         shift_buffer_tick_left = shift_buffer_tick_left + dt
         shift_buffer_tick_right = 0
         if shift_buffer_tick_left > 0.2 then
@@ -1946,7 +2096,7 @@ function love.update(dt)
                 shift_piece2D(board, current_piece, -1)
             end
         end
-    elseif love.keyboard.isDown("d", "right") and not game_over then
+    elseif love.keyboard.isDown("d", "right") and not line_clear_active and not game_over then
         shift_buffer_tick_right = shift_buffer_tick_right + dt
         shift_buffer_tick_left = 0
         if shift_buffer_tick_right > 0.2 then
@@ -1956,7 +2106,53 @@ function love.update(dt)
                 shift_piece2D(board, current_piece, 1)
             end
         end
+    end   
+
+    if line_clear_active then
+        line_clear_tick = line_clear_tick + dt
+    
+        if line_clear_tick > 0.5 then
+            line_clear_tick = 0
+    
+            if #line_clear_targets > 0 then
+                local batch = table.remove(line_clear_targets, 1)
+                for _, cell in ipairs(batch) do
+                    local depth, row, column = unpack(cell)
+                    board[depth][row][column] = 0
+                end
+            else
+                local clear_set = {}
+                for _, row in ipairs(line_clear_rows) do
+                    clear_set[row] = true
+                end
+                
+                -- Shift rows down correctly across full board
+                for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                    local write_row = ROWS + ROW_BUFFER
+                    for read_row = ROWS + ROW_BUFFER, 1, -1 do
+                        if not clear_set[read_row] then
+                            for column = 1, COLUMNS + COLUMN_BUFFER do
+                                board[depth][write_row][column] = board[depth][read_row][column]
+                            end
+                            write_row = write_row - 1
+                        end
+                    end
+                
+                    -- Fill remaining rows at the top with 0s
+                    for row = write_row, 1, -1 do
+                        for col = 1, COLUMNS + COLUMN_BUFFER do
+                            board[depth][row][col] = 0
+                        end
+                    end
+                end
+    
+                line_clear_active = false
+                line_clear_rows = {}
+                line_clear_targets = {}
+            end
+        end
     end
+    
 
     if game_over then
         game_over_tick = game_over_tick + dt
@@ -1974,6 +2170,8 @@ function love.update(dt)
             else
                 MUSIC_3:play()
             end
+
+            start_level = 0
             screen = "main"
         end
     end
