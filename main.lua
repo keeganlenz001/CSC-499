@@ -1151,12 +1151,12 @@ function love.draw()
     elseif screen == "credits" then
         credits = {
             {
-                "PROGRAMMER AND CREATOR",
+                "PROGRAMMED AND CREATED BY",
                 {"KEEGAN LENZ"}
             },
             {
                 "PLAY TESTERS",
-                {"TALAL ARSHAD", "ELEANOR CORNISH", "CLARE MARVEL"}
+                {"TALAL ARSHAD", "JAYDEN BALTAZAR", "ELEANOR CORNISH", "CLARE MARVEL"}
             },
             {
                 "ART,SOUND EFFECTS,AND MUSIC",
