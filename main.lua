@@ -4,7 +4,7 @@ GRID = 8
 
 ROWS = 20
 COLUMNS = 10
-DEPTH = 1
+DEPTH = 4
 
 ROW_BUFFER = 3
 COLUMN_BUFFER = 3
@@ -1516,28 +1516,28 @@ end
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
-    current_piece = new_I_PIECE()
+    -- current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
     -- current_piece = new_3D_O_PIECE()
     -- current_piece = new_3D_T_PIECE()
 
-    -- current_piece = next_piece
-    -- next_piece = piece_by_id(math.random(7))
+    current_piece = next_piece
+    next_piece = piece_by_id(math.random(7))
 
-    -- if not is_valid_position(board, current_piece) and not game_over then
-    --     -- current_piece.position.y = current_piece.position.y - 1
-    --     clear_piece(board, current_piece)
-    --     set_piece(board, current_piece)
+    if not is_valid_position(board, current_piece) and not game_over then
+        -- current_piece.position.y = current_piece.position.y - 1
+        clear_piece(board, current_piece)
+        set_piece(board, current_piece)
 
-    --     GAME_OVER_SFX:play()
+        GAME_OVER_SFX:play()
 
-    --     stop_music()
+        stop_music()
 
-    --     game_over = true
-    --     return
-    -- end
+        game_over = true
+        return
+    end
 
-    -- set_piece(board, current_piece)
+    set_piece(board, current_piece)
 end
 
 function is_valid_position(board, piece)
@@ -1936,27 +1936,63 @@ function line_clear(board)
     end
 
     if line_clear_count > 0 then
-        -- Determine inside-out column clear order
-        local col_order = {}
-        local mid = math.floor((COLUMN_OFFSET + COLUMNS + COLUMN_BUFFER - 1) / 2)
-        for offset = 0, mid - COLUMN_OFFSET do
-            local left = mid - offset
-            local right = mid + offset + 1
-
-            if left >= COLUMN_OFFSET then table.insert(col_order, left) end
-            if right < COLUMN_OFFSET + COLUMNS then table.insert(col_order, right) end
-        end
-
-        -- Build targets for all rows, per column index
-        for _, col in ipairs(col_order) do
-            local step = {} -- all cells to clear on this animation tick
-            for _, row in ipairs(rows_to_clear) do
-                for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
-                    table.insert(step, {depth, row, col})
-                end
+        -- Clear out any existing targets
+        line_clear_targets = {}
+        
+        -- We know we have 10 visual columns, so let's make this explicit
+        -- Define the visual center columns (for 10 columns, these are columns 5 and 6)
+        local center_left = COLUMN_OFFSET + 4 -- Visual column 5
+        local center_right = COLUMN_OFFSET + 5 -- Visual column 6
+        
+        -- Step 1: Clear the two center columns together
+        local center_step = {}
+        for _, row in ipairs(rows_to_clear) do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                table.insert(center_step, {depth, row, center_left})
+                table.insert(center_step, {depth, row, center_right})
             end
-            table.insert(line_clear_targets, step)
         end
+        table.insert(line_clear_targets, center_step)
+        
+        -- Step 2: Clear columns 4 and 7 together
+        local step2 = {}
+        for _, row in ipairs(rows_to_clear) do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                table.insert(step2, {depth, row, center_left - 1}) -- Visual column 4
+                table.insert(step2, {depth, row, center_right + 1}) -- Visual column 7
+            end
+        end
+        table.insert(line_clear_targets, step2)
+        
+        -- Step 3: Clear columns 3 and 8 together
+        local step3 = {}
+        for _, row in ipairs(rows_to_clear) do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                table.insert(step3, {depth, row, center_left - 2}) -- Visual column 3
+                table.insert(step3, {depth, row, center_right + 2}) -- Visual column 8
+            end
+        end
+        table.insert(line_clear_targets, step3)
+        
+        -- Step 4: Clear columns 2 and 9 together
+        local step4 = {}
+        for _, row in ipairs(rows_to_clear) do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                table.insert(step4, {depth, row, center_left - 3}) -- Visual column 2
+                table.insert(step4, {depth, row, center_right + 3}) -- Visual column 9
+            end
+        end
+        table.insert(line_clear_targets, step4)
+        
+        -- Step 5: Clear columns 1 and 10 together
+        local step5 = {}
+        for _, row in ipairs(rows_to_clear) do
+            for depth = DEPTH_OFFSET, DEPTH + DEPTH_BUFFER - DEPTH_OFFSET do
+                table.insert(step5, {depth, row, center_left - 4}) -- Visual column 1
+                table.insert(step5, {depth, row, center_right + 4}) -- Visual column 10
+            end
+        end
+        table.insert(line_clear_targets, step5)
 
         line_clear_active = true
         line_clear_rows = rows_to_clear -- store the rows for clearing
@@ -2111,7 +2147,7 @@ function love.update(dt)
     if line_clear_active then
         line_clear_tick = line_clear_tick + dt
     
-        if line_clear_tick > 0.5 then
+        if line_clear_tick > 0.1 then
             line_clear_tick = 0
     
             if #line_clear_targets > 0 then
@@ -2152,7 +2188,6 @@ function love.update(dt)
             end
         end
     end
-    
 
     if game_over then
         game_over_tick = game_over_tick + dt
