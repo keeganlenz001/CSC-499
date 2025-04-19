@@ -1,3 +1,5 @@
+math.randomseed(os.time())
+
 GRID = 8
 
 ROWS = 20
@@ -147,6 +149,8 @@ function love.load()
     shift_buffer_tick = 0
     game_over_tick = 0
 
+    was_hovering = false
+
     level = 0
     total_lines_cleared = 0
     score = 0
@@ -159,8 +163,7 @@ function love.load()
     music = 3
     music_volume = 5
     sound_volume = 5
-    game_type = "NORMAL"
-    start_level = 0
+    game_mode = "NORMAL"
 
     set_music_volume()
     set_sound_volume()
@@ -214,6 +217,31 @@ function love.load()
         }
     end
 
+    function new_3D_T_PIECE()
+        local shape = {
+            {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0}
+            },
+            {
+                {0, 0, 0},
+                {1, 1, 1},
+                {0, 1, 0}
+            },
+            {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0}
+            }
+        }
+
+        return {
+            shape = shape,
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
+        }
+    end
+
     function new_J_PIECE() 
         local shape = {
             {0, 0, 0},
@@ -223,6 +251,32 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
+        }
+    end
+
+    function new_3D_J_PIECE()
+        local shape = {
+            {
+                {0, 0, 0},
+                {0, 3, 0},
+                {0, 0, 0}
+            },
+            {
+                {0, 0, 0},
+                {3, 3, 3},
+                {0, 0, 3}
+            },
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 0, 0}
+            }
+        }
+
+        
+        return {
+            shape = shape,
             position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
@@ -248,6 +302,31 @@ function love.load()
         }
     end
 
+    function new_3D_Z_PIECE()
+        local shape = {
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 2, 0}
+            },
+            {
+                {0, 0, 0},
+                {2, 2, 0},
+                {0, 2, 2}
+            },
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 0, 0}
+            }
+        }
+
+        return {
+            shape = shape,
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
+        }
+    end
+
     function new_O_PIECE()
         local shape = {
             {0, 0, 0, 0},
@@ -258,6 +337,28 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
+            position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
+        }
+    end
+
+    function new_3D_O_PIECE()
+        local shape = {
+            {
+                {0, 0, 0, 0},
+                {0, 1, 1, 0},
+                {0, 1, 1, 0},
+                {0, 0, 0, 0}
+            },
+            {
+                {0, 0, 0, 0},
+                {0, 1, 1, 0},
+                {0, 1, 1, 0},
+                {0, 0, 0, 0}
+            }
+        }
+
+        return {
+            shape = shape,
             position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
@@ -275,6 +376,31 @@ function love.load()
         }
     end
 
+    function new_3D_S_PIECE()
+        local shape = {
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 3, 0}
+            },
+            {
+                {0, 0, 0},
+                {0, 3, 3},
+                {3, 3, 0}
+            },
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 0, 0}
+            }
+        }
+
+        return {
+            shape = shape,
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2)  - 1}
+        }
+    end
+
     function new_L_PIECE()
         local shape = {
             {0, 0, 0},
@@ -284,6 +410,31 @@ function love.load()
 
         return {
             shape = get_shape3D(shape),
+            position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
+        }
+    end
+
+    function new_3D_L_PIECE()
+        local shape = {
+            {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0}
+            },
+            {
+                {0, 0, 0},
+                {1, 1, 1},
+                {1, 0, 0}
+            },
+            {
+                {0, 0, 0},
+                {0, 0, 0},
+                {0, 0, 0}
+            }
+        }
+
+        return {
+            shape = shape,
             position = {x = 5, y = 0, z = math.ceil(DEPTH / 2) - 1}
         }
     end
@@ -301,31 +452,6 @@ function love.load()
             position = {x = 4, y = 0, z = math.ceil(DEPTH / 2)  - 1}
         }
     end
-
-    function new_DEBUG_PIECE()
-        local shape = {
-            {
-                {0, 1, 0},
-                {0, 0, 0},
-                {0, 0, 0} 
-            },
-            {
-                {0, 1, 0},
-                {0, 1, 0},
-                {0, 0, 0} 
-            },
-            {
-                {0, 0, 0},
-                {0, 1, 0},
-                {0, 0, 0} 
-            }
-        }
-
-        return {
-            shape = shape,
-            position = {x = 4, y = 0, z = math.ceil(DEPTH / 2) - 1}
-        }
-    end
 end
 
 function new_game()
@@ -335,7 +461,6 @@ function new_game()
     shift_tick = 0
     game_over_tick = 0
 
-    level = start_level
     total_lines_cleared = 0
     score = 0
     high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
@@ -472,15 +597,64 @@ function love.draw()
     center_x = canvas:getWidth() / 2
     center_y = canvas:getHeight() / 2
 
+    PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
+
     if screen == "main" then
-        bw = PADDING * 8
-        bh = PADDING * 2
+        title = {
+            {
+                {0,1,1,1,1,3,3, 0, 0,0,0,0, 0, 1,1,1,2,2,0,0},
+                {0,0,0,0,3,3,0, 0, 0,0,0,0, 0, 1,1,0,0,2,2,0},
+                {0,0,0,2,2,0,0, 0, 0,0,0,0, 0, 1,3,0,0,0,1,1},
+                {0,0,3,3,2,2,0, 0, 1,1,1,1, 0, 1,2,0,0,0,1,1},
+                {0,0,0,0,0,1,2, 0, 0,0,0,0, 0, 1,2,0,0,0,3,3},
+                {2,2,0,0,0,2,2, 0, 0,0,0,0, 0, 2,2,0,0,3,3,0},
+                {0,1,1,1,1,2,0, 0, 0,0,0,0, 0, 2,1,1,1,1,0,0}
+            },
+            {
+                {3,3,3,2,2,2,0, 1,1,1,2,2,3,0, 1,1,1,3,3,1,0, 3,1,1,1,1,3,0, 0, 1,1,1,1,2,2,0, 0,3,3,2,2,0,0},
+                {0,0,3,2,0,0,0, 3,1,0,0,0,0,0, 0,0,3,3,0,0,0, 3,3,0,0,0,3,3, 0, 0,0,3,3,0,0,0, 3,3,0,0,2,2,0},
+                {0,0,2,2,0,0,0, 3,3,0,0,0,0,0, 0,0,2,2,0,0,0, 1,3,0,0,0,1,3, 0, 0,0,3,1,0,0,0, 2,2,0,0,0,0,0},
+                {0,0,1,2,0,0,0, 1,3,1,1,1,1,0, 0,0,1,2,0,0,0, 1,1,0,0,1,1,1, 0, 0,0,3,2,0,0,0, 0,2,2,3,3,3,0},
+                {0,0,1,2,0,0,0, 1,1,0,0,0,0,0, 0,0,3,2,0,0,0, 1,3,2,2,3,0,0, 0, 0,0,2,2,0,0,0, 0,0,0,0,0,3,2},
+                {0,0,1,3,0,0,0, 1,3,0,0,0,0,0, 0,0,3,3,0,0,0, 3,3,0,2,2,2,0, 0, 0,0,2,1,0,0,0, 3,3,0,0,0,2,2},
+                {0,0,1,3,0,0,0, 2,3,3,3,1,2,0, 0,0,2,3,0,0,0, 2,2,0,0,1,2,2, 0, 3,3,1,1,1,2,0, 1,1,1,1,2,0,0}
+            }
+        }
+        
+        for layer = 1, #title do
+            for row = 1, #title[layer] do
+                for column = 1, #title[layer][row] do
+                    local x = column * GRID
+                    if layer == 1 then
+                        x = (column * GRID) + (PADDING * 11) + (PADDING / 2)
+                    end
+
+                    -- local x = column * GRID
+                    local y = row * GRID + ((layer - 1) * (PADDING * 8)) + ((layer - 1) * (PADDING / 2))
+
+                    if contains(ACTIVE_PIECE_VALUES, title[layer][row][column]) then
+                        if title[layer][row][column] == ACTIVE_PIECE_VALUES[1] then
+                            draw_piece(x, y, 1, PIXEL)
+                        elseif title[layer][row][column] == ACTIVE_PIECE_VALUES[2] then
+                            draw_piece(x, y, 2, PIXEL)
+                        elseif title[layer][row][column] == ACTIVE_PIECE_VALUES[3] then
+                            draw_piece(x, y, 3, PIXEL)
+                        end
+                    end
+                end
+            end
+        end
+
+        love.graphics.printf("BY KEEGAN LENZ", 0, (center_y + (PADDING * 2) + (PADDING / 2)) - (nes_font:getHeight() / 2), canvas:getWidth(), "center")
+
+        bw = PADDING * 10
+        bh = (PADDING * 2)
     
         buttons = {
-            {center_x - (bw / 2), (center_y + (PADDING  * 4)) - (bh / 2), bw, bh, "START"},
-            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh / 2) + PADDING, bw, bh, "OPTIONS"},
-            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 2) + PADDING, bw, bh, "CREDITS"},
-            {center_x - (bw / 2), (center_y + (PADDING  * 4)) + (bh * 4), bw, bh, "QUIT"},
+            {center_x - (bw / 2), center_y + (PADDING  * 4) + (PADDING / 4), bw, bh, "START"},
+            {center_x - (bw / 2), center_y + (PADDING  * 4) + (PADDING / 4) + bh + ((PADDING / 4) * 3), bw, bh, "OPTIONS"},
+            {center_x - (bw / 2), center_y + (PADDING  * 4) + (PADDING / 4) + (bh * 2) + (2 * ((PADDING / 4) * 3)), bw, bh, "CREDITS"},
+            {center_x - (bw / 2), center_y + (PADDING  * 4) + (PADDING / 4) + (bh * 3) + (3 * ((PADDING / 4) * 3)), bw, bh, "QUIT"},
         }
 
         hovering = false
@@ -523,13 +697,15 @@ function love.draw()
             love.graphics.printf(buttons[i][5], bx, by + (bh / 2) - (nes_font:getHeight() / 2), bw, "center")
         end
 
-        if hovering then
+        if hovering and not was_hovering then
             TICK_SFX:play()
             love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
-        else
+        elseif not hovering and was_hovering then
             TICK_SFX:stop()
             love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
         end
+
+        was_hovering = hovering
 
         set_canvas(canvas, offset_x, offset_y, scale)
 
@@ -538,59 +714,59 @@ function love.draw()
         bw = PADDING * 2
         bh = PADDING * 2
 
-        spacing = PADDING * 4
+        spacing = PADDING * 5
 
         if screen == "options" then
             buttons = {
                 {
-                    center_x + bw +PADDING, center_y - (PADDING * 8) + (bh / 2), 
+                    center_x + bw + PADDING, center_y - (PADDING * 8) + (bh / 2), 
                     center_x + PADDING, center_y - (PADDING * 8),
                     center_x + bw  + PADDING, center_y - (PADDING * 8) - (bh / 2),
-                    "PIECE SET:", game_type
+                    "PIECE SET:", game_mode
                 },
                 {
-                    center_x + bw  + PADDING, center_y - (PADDING * 4) + (bh / 2), 
+                    center_x + bw + PADDING, center_y - (PADDING * 4) + (bh / 2), 
                     center_x + PADDING, center_y - (PADDING * 4),
-                    center_x + bw  + PADDING, center_y - (PADDING * 4) - (bh / 2),
+                    center_x + bw + PADDING, center_y - (PADDING * 4) - (bh / 2),
                     "MUSIC:", music
                 },
                 {
-                    center_x + bw  + PADDING, center_y + (bh / 2), 
+                    center_x + bw + PADDING, center_y + (bh / 2), 
                     center_x + PADDING, center_y,
-                    center_x + bw  + PADDING, center_y - (bh / 2),
+                    center_x + bw + PADDING, center_y - (bh / 2),
                     "MUSIC VOLUME:", music_volume
                 },
                 {
-                    center_x + bw  + PADDING, center_y + (PADDING * 4) + (bh / 2), 
+                    center_x + bw + PADDING, center_y + (PADDING * 4) + (bh / 2), 
                     center_x + PADDING, center_y + (PADDING * 4),
-                    center_x + bw  + PADDING, center_y + (PADDING * 4) - (bh / 2),
+                    center_x + bw + PADDING, center_y + (PADDING * 4) - (bh / 2),
                     "SOUND VOLUME:",  sound_volume
                 },
                 {
-                    center_x + bw  + PADDING, center_y + (PADDING * 8) + (bh / 2), 
+                    center_x + bw + PADDING, center_y + (PADDING * 8) + (bh / 2), 
                     center_x + PADDING, center_y + (PADDING * 8),
-                    center_x + bw  + PADDING, center_y + (PADDING * 8) - (bh / 2),
-                    "STARTING LEVEL:",  start_level
+                    center_x + bw + PADDING, center_y + (PADDING * 8) - (bh / 2),
+                    "STARTING LEVEL:",  level
                 }
             }
         elseif screen == "pause_options" then
             buttons = {
                 {
-                    center_x + bw  + PADDING, center_y - (PADDING * 4) + (bh / 2), 
+                    center_x + bw + PADDING, center_y - (PADDING * 4) + (bh / 2), 
                     center_x + PADDING, center_y - (PADDING * 4),
-                    center_x + bw  + PADDING, center_y - (PADDING * 4) - (bh / 2),
+                    center_x + bw + PADDING, center_y - (PADDING * 4) - (bh / 2),
                     "MUSIC:", music
                 },
                 {
-                    center_x + bw  + PADDING, center_y + (bh / 2), 
+                    center_x + bw + PADDING, center_y + (bh / 2), 
                     center_x + PADDING, center_y,
-                    center_x + bw  + PADDING, center_y - (bh / 2),
+                    center_x + bw + PADDING, center_y - (bh / 2),
                     "MUSIC VOLUME:", music_volume
                 },
                 {
-                    center_x + bw  + PADDING, center_y + (PADDING * 4) + (bh / 2), 
+                    center_x + bw + PADDING, center_y + (PADDING * 4) + (bh / 2), 
                     center_x + PADDING, center_y + (PADDING * 4),
-                    center_x + bw  + PADDING, center_y + (PADDING * 4) - (bh / 2),
+                    center_x + bw + PADDING, center_y + (PADDING * 4) - (bh / 2),
                     "SOUND VOLUME:",  sound_volume
                 }
             }
@@ -637,10 +813,10 @@ function love.draw()
 
                         if i == 1 then
                             if screen == "options" then
-                                if game_type == "NORMAL" then
-                                    game_type = "3D"
-                                else
-                                    game_type = "NORMAL"
+                                if game_mode == "3D" then
+                                    game_mode = "NORMAL"
+                                elseif game_mode == "COMBINED" then
+                                    game_mode = "3D"
                                 end
                             else
                                 if music > 1 then
@@ -692,8 +868,8 @@ function love.draw()
                                 set_sound_volume()
                             end
                         elseif i == 5 then
-                            if start_level > 0 then
-                                start_level = start_level - 1
+                            if level > 0 then
+                                level = level - 1
                             end
                         end                                
                     end
@@ -717,10 +893,10 @@ function love.draw()
                     
                         if i == 1 then
                             if screen == "options" then
-                                if game_type == "NORMAL" then
-                                    game_type = "3D"
-                                else
-                                    game_type = "NORMAL"
+                                if game_mode == "NORMAL" then
+                                    game_mode = "3D"
+                                elseif game_mode == "3D" then
+                                    game_mode = "COMBINED"
                                 end
                             else
                                 if music < 3 then
@@ -772,8 +948,8 @@ function love.draw()
                                 set_sound_volume()
                             end
                         elseif i == 5 then
-                            if start_level < 19 then
-                                start_level = start_level + 1
+                            if level < 19 then
+                                level = level + 1
                             end
                         end                                
                     end
@@ -845,13 +1021,15 @@ function love.draw()
             love.graphics.printf(RESUME_BUTTON[5], RESUME_BUTTON[1], RESUME_BUTTON[2] + (bh / 2) - (nes_font:getHeight() / 2), PADDING * 6, "center")
         end
 
-        if hovering then
+        if hovering and not was_hovering then
             TICK_SFX:play()
             love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
-        else
+        elseif not hovering and was_hovering then
             TICK_SFX:stop()
             love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
         end
+
+        was_hovering = hovering
 
         set_canvas(canvas, offset_x, offset_y, scale)
         
@@ -859,7 +1037,7 @@ function love.draw()
     elseif screen == "pause" then
         pause_music()
 
-        bw = PADDING * 8
+        bw = PADDING * 10
         bh = PADDING * 2
     
         buttons = {
@@ -922,13 +1100,15 @@ function love.draw()
             love.graphics.printf(buttons[i][5], bx, by + (bh / 2) - (nes_font:getHeight() / 2), bw, "center")
         end
 
-        if hovering then
+        if hovering and not was_hovering then
             TICK_SFX:play()
             love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
-        else
+        elseif not hovering and was_hovering then
             TICK_SFX:stop()
             love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
         end
+
+        was_hovering = hovering
 
         set_canvas(canvas, offset_x, offset_y, scale)
 
@@ -946,8 +1126,6 @@ function love.draw()
     love.graphics.print(formatted_score, PADDING * 12, (PADDING / 2) + FONT_SIZE)
 
     -- Next Piece
-    PIECE_COLORS = PIECE_COLOR_SETS[(level % 10) + 1]
-
     love.graphics.print("NEXT", PADDING * 23, PADDING / 2)
     for depth = 1, #next_piece.shape do
         local x_offset = PADDING * 29
@@ -1155,38 +1333,67 @@ function get_ghost(board, piece)
 end
 
 function piece_by_id(id)
-    if id == 1 then
-        piece = new_T_PIECE()
-    elseif id == 2 then
-        piece = new_J_PIECE()
-    elseif id == 3 then
-        piece = new_Z_PIECE()
-    elseif id == 4 then
-        piece = new_O_PIECE()
-    elseif id == 5 then
-        piece = new_S_PIECE()
-    elseif id == 6 then
-        piece = new_L_PIECE()
-    elseif id == 7 then
-        piece = new_I_PIECE()
+    if game_mode == "NORMAL" then
+        return ({
+            new_T_PIECE,
+            new_J_PIECE,
+            new_Z_PIECE,
+            new_O_PIECE,
+            new_S_PIECE,
+            new_L_PIECE,
+            new_I_PIECE
+        })[id]()
+    elseif game_mode == "3D" then
+        return ({
+            new_3D_T_PIECE,
+            new_3D_J_PIECE,
+            new_3D_Z_PIECE,
+            new_3D_O_PIECE,
+            new_3D_S_PIECE,
+            new_3D_L_PIECE,
+            new_I_PIECE
+        })[id]()
+    elseif game_mode == "COMBINED" then
+        if math.random(0, 1) == 0 then
+            return ({
+                new_T_PIECE,
+                new_J_PIECE,
+                new_Z_PIECE,
+                new_O_PIECE,
+                new_S_PIECE,
+                new_L_PIECE,
+                new_I_PIECE
+            })[id]()
+        else
+            return ({
+                new_3D_T_PIECE,
+                new_3D_J_PIECE,
+                new_3D_Z_PIECE,
+                new_3D_O_PIECE,
+                new_3D_S_PIECE,
+                new_3D_L_PIECE,
+                new_I_PIECE
+            })[id]()
+        end
     end
-
-    return piece
 end
+    
 
 function new_piece()
     -- Debug
     -- current_piece = new_DEBUG_PIECE()
     -- current_piece = new_I_PIECE()
     -- current_piece = new_Z_PIECE()
+    -- current_piece = new_3D_O_PIECE()
+    -- current_piece = new_3D_T_PIECE()
 
     current_piece = next_piece
     next_piece = piece_by_id(math.random(7))
 
     if not is_valid_position(board, current_piece) and not game_over then
-        current_piece.position.y = current_piece.position.y - 1
-        clear_piece(board, piece)
-        set_piece(board, piece)
+        -- current_piece.position.y = current_piece.position.y - 1
+        clear_piece(board, current_piece)
+        set_piece(board, current_piece)
 
         GAME_OVER_SFX:play()
 
@@ -1617,7 +1824,7 @@ function line_clear(board)
     end
 
     total_lines_cleared = total_lines_cleared + (line_clear_count * 4)
-    level = start_level + math.floor(total_lines_cleared / 10)
+    level = level + math.floor(total_lines_cleared / 10)
     -- level = math.floor(total_lines_cleared / 1)
 
     -- NES Tetris standard for score calculation (multiplied by depth)
@@ -1642,12 +1849,21 @@ function line_clear(board)
 end
 
 
-
 function love.keypressed(key)
 
     if key == "escape" then
         if screen == "game" then
             screen = "pause"
+        elseif screen == "pause" then
+            if music == 1 then
+                MUSIC_1:play()
+            elseif music == 2 then
+                MUSIC_2:play()
+            else
+                MUSIC_3: play()
+            end
+            
+            screen = "game"
         elseif screen == "options" then
             screen = "main"
         elseif screen == "pause_options" then
