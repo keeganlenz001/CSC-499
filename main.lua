@@ -473,7 +473,6 @@ function new_game()
     level = start_level
     total_lines_cleared = 0
     score = 0
-    high_score = tonumber(love.filesystem.read(high_score_file), 10) or 0
     game_over = false
     game_over_time = nil
     game_over_row = 0
@@ -2205,8 +2204,9 @@ function love.update(dt)
             else
                 MUSIC_3:play()
             end
-
+            
             start_level = 0
+            level = start_level
             screen = "main"
         end
     end
